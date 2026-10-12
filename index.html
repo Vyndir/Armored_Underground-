@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Armored Underground</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="speedlines"></div>
+  <div id="damage"></div>
+
+  <div id="hud">
+    <div id="crosshair"><i></i><i></i><i></i><i></i></div>
+    <div id="hitmarker">✕</div>
+    <div id="lockbox"><span></span><b><i></i></b></div>
+
+    <div id="race-info">
+      <div id="race-pos"></div>
+      <div id="race-lap"></div>
+      <div id="race-board"></div>
+    </div>
+    <div id="race-time"></div>
+    <div id="wallet"></div>
+
+    <canvas id="minimap" width="220" height="220"></canvas>
+
+    <div id="bars">
+      <div class="row"><label>AP</label><div class="bar" id="ap-bar"><div id="ap-fill"></div></div><span id="ap-num"></span></div>
+      <div class="row"><label>EN</label><div class="bar" id="en-bar"><div id="en-fill"></div></div><span class="oh">EN OUT</span></div>
+    </div>
+    <div id="arms">
+      <div><small>R-ARM · LMB</small><b id="wp-name"></b><span id="wp-ammo"></span></div>
+      <div><small>SHOULDER · RMB</small><b id="sh-name"></b><span id="sh-cd"></span></div>
+    </div>
+    <div id="speed-gauge"><div id="speed-num">0</div><small>KM/H</small></div>
+
+    <div id="prompt"></div>
+    <div id="countdown"></div>
+    <div id="toast"></div>
+    <div id="down">SYSTEMS DOWN<small>REBOOTING…</small></div>
+  </div>
+
+  <div id="title" class="overlay">
+    <div class="panel title">
+      <h1>ARMORED<br /><span>UNDERGROUND</span></h1>
+      <p class="tag">Night city. Street-legal mechs. No rules after midnight.</p>
+      <button id="start-btn">IGNITE</button>
+      <div class="controls">
+        <div><kbd>WASD</kbd> move</div>
+        <div><kbd>Mouse</kbd> look / aim</div>
+        <div><kbd>Shift</kbd> boost (hold)</div>
+        <div><kbd>Q</kbd> quick boost</div>
+        <div><kbd>Space</kbd> jump · hold to hover</div>
+        <div><kbd>LMB</kbd> fire arm weapon</div>
+        <div><kbd>RMB</kbd> shoulder unit</div>
+        <div><kbd>R</kbd> reload · <kbd>E</kbd> interact</div>
+        <div><kbd>Esc</kbd> pause</div>
+      </div>
+      <p class="hint">Find the amber <b>G</b> on your minimap to visit the garage. Race markers show as numbered pins.</p>
+    </div>
+  </div>
+
+  <div id="pause" class="overlay">
+    <div class="panel">
+      <h2>PAUSED</h2>
+      <button id="resume-btn">RESUME</button>
+      <button id="retire-btn">RETIRE FROM RACE</button>
+      <button id="reset-btn" class="ghost">RESET SAVE</button>
+    </div>
+  </div>
+
+  <div id="event-card" class="overlay">
+    <div class="panel">
+      <div class="etype" id="ev-type"></div>
+      <h2 id="ev-name"></h2>
+      <p id="ev-blurb"></p>
+      <div id="ev-meta"></div>
+      <div class="btns"><button id="ev-start">RACE <small>ENTER</small></button><button id="ev-cancel" class="ghost">BACK <small>ESC</small></button></div>
+    </div>
+  </div>
+
+  <div id="results" class="overlay">
+    <div class="panel">
+      <div class="etype" id="res-event"></div>
+      <h2 id="res-pos"></h2>
+      <div id="res-table"></div>
+      <div id="res-reward"></div>
+      <button id="res-continue">CONTINUE <small>ENTER</small></button>
+    </div>
+  </div>
+
+  <div id="garage">
+    <div class="g-left">
+      <h2>RIG SHOP</h2>
+      <div id="garage-credits"></div>
+      <div id="garage-slots"></div>
+      <div class="paint">
+        <h3>PAINT</h3>
+        <label>PRIMARY <input type="color" id="paint-primary" /></label>
+        <label>SECONDARY <input type="color" id="paint-secondary" /></label>
+        <label>NEON <input type="color" id="paint-neon" /></label>
+      </div>
+      <button id="garage-exit">BACK TO STREETS <small>ESC</small></button>
+    </div>
+    <div class="g-right">
+      <div id="garage-parts"></div>
+      <div id="garage-stats"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
