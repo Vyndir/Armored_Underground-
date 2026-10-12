@@ -13,8 +13,9 @@ from mathutils import Vector, Matrix, Euler, Quaternion
 MCLASS = ['paint', 'accent', 'frame', 'joint', 'steel', 'decal', 'glow', 'thrust', 'glass', 'rubber']
 MC = {n: i for i, n in enumerate(MCLASS)}
 
-STATE = {'part': None, 'objs': []}   # objs: list of (obj, bone, marker)
+STATE = {'part': None, 'objs': [], 'cutters': []}   # objs: list of (obj, bone, marker)
 RNG = random.Random(7)
+import math as _m
 
 
 def _bm():
@@ -26,6 +27,7 @@ def _bm():
 def begin(part_id, seed=None):
     STATE['part'] = part_id
     STATE['objs'] = []
+    STATE['cutters'] = []
     RNG.seed(seed if seed is not None else hash(part_id) & 0xffff)
 
 
@@ -57,7 +59,46 @@ def _link(name, bm, mclass, bone, bevel=0.0, bevel_segs=2, angle=32, marker=None
         wn = obj.modifiers.new('WN', 'WEIGHTED_NORMAL')
         wn.keep_sharp = True
     STATE['objs'].append((obj, bone, marker))
+    if AUTO_DETAIL['on'] and mclass == 'paint' and bevel > 0:
+        _auto_detail(obj, bone)
     return obj
+
+
+AUTO_DETAIL = {'on': True, 'chance': 0.28, 'max': 3}
+BOOL_SOLVER = ['MANIFOLD']
+
+
+def _auto_detail(obj, bone):
+    """Sprinkle hard-surface detail on big armour faces: light channels, slot rows, recessed hatches."""
+    me = obj.data
+    faces = [p for p in me.polygons if p.area > 0.07]
+    RNG.shuffle(faces)
+    done = 0
+    for p in faces:
+        if done >= AUTO_DETAIL['max'] or RNG.random() > AUTO_DETAIL['chance']:
+            continue
+        # face frame: longest edge direction as 'up'
+        vs = [me.vertices[i].co for i in p.vertices]
+        best, up = 0, Vector((0, 0, 1))
+        for a, b in zip(vs, vs[1:] + vs[:1]):
+            if (b - a).length > best:
+                best, up = (b - a).length, (b - a).normalized()
+        span = min(best, math.sqrt(p.area))
+        n = p.normal.copy()
+        c = p.center.copy()
+        kind = RNG.random()
+        if kind < 0.1:
+            recess(obj, c + up * span * RNG.uniform(-0.15, 0.15), tuple(n), 0.05, span * 0.55, 0.028, up=tuple(up), light=True, bone=bone)
+        elif kind < 0.3:
+            recess(obj, c + up * span * RNG.uniform(-0.15, 0.15), tuple(n), 0.05, span * 0.55, 0.028, up=tuple(up))
+        elif kind < 0.7:
+            side = n.cross(up).normalized()
+            k = RNG.randint(3, 5)
+            a = c - side * span * 0.25 + up * span * 0.25
+            slots(obj, a, a + side * span * 0.4, k, tuple(n), 0.035, span * 0.18, 0.025, up=tuple(up))
+        else:
+            recess(obj, c, tuple(n), span * 0.32, span * 0.22, 0.022, up=tuple(up))
+        done += 1
 
 
 def _set_class(bm, faces, mclass):
@@ -303,6 +344,66 @@ def greebles(name, center, u_axis, v_axis, size_u, size_v, count, bone, normal, 
         prism(f'{name}{i}', rect(w, d), hh, p + N * hh / 2, tuple(N), RNG.choice([mclass, 'frame', 'steel', 'joint']), bone, bevel=0.006, up=tuple(V))
 
 
+# ------------------------------------------------------------------ boolean detailing
+def _cutter(center, normal, up, w, h, depth, profile=None):
+    """Hidden boolean cutter box/prism centred on a surface point (half above, half below)."""
+    x, y, n = frame_from(Vector(normal), Vector(up))
+    c = Vector(center)
+    prof = profile or rect(w, h)
+    bm = _bm()
+    lay = bm.faces.layers.int.get('mclass')
+    top = [bm.verts.new(c + n * depth + x * u + y * v) for u, v in prof]
+    bot = [bm.verts.new(c - n * depth + x * u + y * v) for u, v in prof]
+    bm.faces.new(top)
+    bm.faces.new(list(reversed(bot)))
+    k = len(prof)
+    for i in range(k):
+        j = (i + 1) % k
+        bm.faces.new([top[j], top[i], bot[i], bot[j]])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    for f in bm.faces:
+        f[lay] = MC['joint']
+    me = bpy.data.meshes.new('Cutter')
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new('Cutter', me)
+    bpy.context.scene.collection.objects.link(o)
+    o.hide_render = True
+    o.hide_viewport = True
+    STATE['cutters'].append(o)
+    return o
+
+
+def _add_bool(target, cutter):
+    md = target.modifiers.new('Cut', 'BOOLEAN')
+    md.operation = 'DIFFERENCE'
+    md.solver = BOOL_SOLVER[0]
+    md.object = cutter
+    # booleans must run before bevel / weighted normals
+    for m in target.modifiers:
+        if m.type == 'BEVEL':
+            m.miter_outer = 'MITER_SHARP'
+            m.use_clamp_overlap = True
+    idx = len(target.modifiers) - 1
+    first_non_bool = next((i for i, m in enumerate(target.modifiers) if m.type != 'BOOLEAN'), idx)
+    target.modifiers.move(idx, first_non_bool)
+
+
+def recess(target, center, normal, w, h, depth=0.035, up=(0, 0, 1), light=False, bone=None, profile=None, inset_class='joint'):
+    """Cut a shallow pocket into an armour piece; optionally lay a glowing strip in it."""
+    _add_bool(target, _cutter(center, normal, up, w, h, depth, profile))
+    if light:
+        n = Vector(normal).normalized()
+        prism(target.name + '_RecessLight', rect(w * 0.8, h * 0.5), 0.02, Vector(center) - n * (depth * 0.7), tuple(n), 'glow', bone, bevel=0, up=up)
+
+
+def slots(target, start, end, n, normal, w, h, depth=0.03, up=(0, 0, 1)):
+    """A row of small vent/lightening slots cut into a surface."""
+    s, e = Vector(start), Vector(end)
+    for i in range(n):
+        _add_bool(target, _cutter(s.lerp(e, i / max(1, n - 1)), normal, up, w, h, depth))
+
+
 # ------------------------------------------------------------------ mirroring and finishing
 def mirror_last(count, from_side='.L'):
     """Mirror the last `count` objects across X (bone .L -> .R)."""
@@ -317,6 +418,16 @@ def mirror_last(count, from_side='.L'):
         for v in dup.data.vertices:
             v.co.x = -v.co.x
         dup.data.flip_normals()
+        for md in dup.modifiers:
+            if md.type == 'BOOLEAN' and md.object:
+                cm = md.object.copy()
+                cm.data = md.object.data.copy()
+                bpy.context.scene.collection.objects.link(cm)
+                for v in cm.data.vertices:
+                    v.co.x = -v.co.x
+                cm.data.flip_normals()
+                STATE['cutters'].append(cm)
+                md.object = cm
         if 'text_c' in obj:
             # keep text readable: reflect again along its own reading axis
             c = Vector(obj['text_c']); c.x = -c.x
@@ -382,5 +493,9 @@ def finish(rig):
         obj['part'] = pid
         obj['bone'] = bone
         result.append(obj)
+    for c in STATE['cutters']:
+        if c.name in bpy.data.objects:
+            bpy.data.objects.remove(c)
+    STATE['cutters'] = []
     STATE['objs'] = []
     return result

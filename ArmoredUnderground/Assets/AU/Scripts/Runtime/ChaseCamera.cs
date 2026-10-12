@@ -34,7 +34,7 @@ namespace AU
             _ca = p.Add<ChromaticAberration>(); _ca.intensity.Override(0.75f);
             _ld = p.Add<LensDistortion>(); _ld.intensity.Override(-0.28f); _ld.scale.Override(1.02f);
             _vg = p.Add<Vignette>(); _vg.intensity.Override(0.48f); _vg.smoothness.Override(0.5f);
-            _mb = p.Add<MotionBlur>(); _mb.intensity.Override(0.55f); _mb.mode.Override(MotionBlurMode.CameraOnly);
+            _mb = p.Add<MotionBlur>(); _mb.intensity.Override(0.25f); _mb.mode.Override(MotionBlurMode.CameraOnly);
             _speedVol.profile = p;
 
             var dgo = new GameObject("DamageVolume");

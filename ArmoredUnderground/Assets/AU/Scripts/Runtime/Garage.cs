@@ -32,6 +32,7 @@ namespace AU
         Slot _slot = Slot.Legs;
         float _angle = 0.6f, _savedFogDensity;
         bool _savedFog;
+        Material _savedSky; CameraClearFlags _savedClear; Color _savedBg;
         Vector3 _camPos; Quaternion _camRot; float _camFov;
         readonly Dictionary<Slot, Text> _slotLabels = new();
 
@@ -51,7 +52,7 @@ namespace AU
             _set.transform.position = Origin;
             var a = GameAssets.I;
             var floorMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-            floorMat.SetColor("_BaseColor", new Color(0.05f, 0.055f, 0.065f)); floorMat.SetFloat("_Smoothness", 0.85f); floorMat.SetFloat("_Metallic", 0.6f);
+            floorMat.SetColor("_BaseColor", new Color(0.035f, 0.038f, 0.045f)); floorMat.SetFloat("_Smoothness", 0.75f); floorMat.SetFloat("_Metallic", 0.6f);
             var wallMat = new Material(floorMat); wallMat.SetColor("_BaseColor", new Color(0.03f, 0.03f, 0.035f)); wallMat.SetFloat("_Smoothness", 0.4f);
             GameObject Prim(PrimitiveType t, Vector3 p, Vector3 s, Material m, Quaternion? r = null)
             {
@@ -86,12 +87,21 @@ namespace AU
                 l.transform.LookAt(Origin + Vector3.up * 4);
                 l.type = LightType.Spot; l.color = c; l.intensity = intensity; l.range = 60; l.spotAngle = angle; l.shadows = LightShadows.Soft;
             }
-            Spot(new Vector3(8, 18, 10), new Color(1f, 0.88f, 0.75f), 900, 45);
-            Spot(new Vector3(-12, 10, -8), new Color(0.2f, 0.75f, 1f), 700, 50);
-            Spot(new Vector3(12, 6, -10), new Color(1f, 0.2f, 0.6f), 500, 50);
+            // studio lighting: warm key, cool rim, magenta kicker, soft fill + top light
+            Spot(new Vector3(10, 16, 12), new Color(1f, 0.93f, 0.85f), 1400, 40);
+            Spot(new Vector3(-12, 9, -10), new Color(0.35f, 0.75f, 1f), 900, 45);
+            Spot(new Vector3(13, 5, -9), new Color(1f, 0.3f, 0.65f), 500, 45);
+            Spot(new Vector3(-9, 6, 12), new Color(0.75f, 0.82f, 1f), 450, 55);
+            Spot(new Vector3(0, 22, 0.5f), new Color(1f, 1f, 1f), 600, 35);
             var fill = new GameObject("Fill").AddComponent<Light>();
-            fill.transform.SetParent(_set.transform, false); fill.transform.localPosition = new Vector3(0, 6, 14);
-            fill.type = LightType.Point; fill.range = 30; fill.intensity = 8; fill.color = new Color(0.7f, 0.8f, 1f);
+            fill.transform.SetParent(_set.transform, false); fill.transform.localPosition = new Vector3(0, 5, 16);
+            fill.type = LightType.Point; fill.range = 32; fill.intensity = 6; fill.color = new Color(0.7f, 0.78f, 1f);
+            var probe = new GameObject("ShowroomProbe").AddComponent<ReflectionProbe>();
+            probe.transform.SetParent(_set.transform, false); probe.transform.localPosition = new Vector3(0, 5, 0);
+            probe.mode = UnityEngine.Rendering.ReflectionProbeMode.Realtime;
+            probe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.EveryFrame;
+            probe.timeSlicingMode = UnityEngine.Rendering.ReflectionProbeTimeSlicingMode.AllFacesAtOnce;
+            probe.size = new Vector3(90, 40, 90); probe.resolution = 256; probe.importance = 100; probe.hdr = true;
         }
 
         void RebuildPreview()
@@ -287,6 +297,10 @@ namespace AU
             _camPos = _cam.transform.position; _camRot = _cam.transform.rotation; _camFov = _cam.fieldOfView;
             _savedFog = RenderSettings.fog; _savedFogDensity = RenderSettings.fogDensity;
             RenderSettings.fog = false;
+            _savedSky = RenderSettings.skybox; _savedClear = _cam.clearFlags; _savedBg = _cam.backgroundColor;
+            RenderSettings.skybox = null;
+            _cam.clearFlags = CameraClearFlags.SolidColor;
+            _cam.backgroundColor = new Color(0.012f, 0.014f, 0.02f);
             RebuildPreview();
             Refresh();
             Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
@@ -300,6 +314,7 @@ namespace AU
             _set.SetActive(false);
             _canvas.gameObject.SetActive(false);
             RenderSettings.fog = _savedFog; RenderSettings.fogDensity = _savedFogDensity;
+            RenderSettings.skybox = _savedSky; _cam.clearFlags = _savedClear; _cam.backgroundColor = _savedBg;
             _cam.transform.SetPositionAndRotation(_camPos, _camRot); _cam.fieldOfView = _camFov;
             Closed?.Invoke();
         }

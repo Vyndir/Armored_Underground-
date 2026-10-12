@@ -25,6 +25,7 @@ namespace AU.EditorTools
             Directory.CreateDirectory("Assets/AU/Resources");
             Mats.Reset();
             EnsureLayers();
+            EnsureSSAO();
 
             var assets = BuildGameAssets();
             MechImporter.Build(assets);
@@ -53,6 +54,36 @@ namespace AU.EditorTools
             Set(6, "Mech");
             Set(7, "Projectile");
             tm.ApplyModifiedProperties();
+        }
+
+        /// <summary>Screen-space ambient occlusion on the PC renderer: grounds the mechs and street props.</summary>
+        static void EnsureSSAO()
+        {
+            var data = AssetDatabase.LoadAssetAtPath<UniversalRendererData>("Assets/Settings/PC_Renderer.asset");
+            if (!data) return;
+            var ssao = data.rendererFeatures.Find(f => f is ScreenSpaceAmbientOcclusion) as ScreenSpaceAmbientOcclusion;
+            if (!ssao)
+            {
+                ssao = ScriptableObject.CreateInstance<ScreenSpaceAmbientOcclusion>();
+                ssao.name = "SSAO";
+                AssetDatabase.AddObjectToAsset(ssao, data);
+                data.rendererFeatures.Add(ssao);
+                var so = new SerializedObject(data);
+                var map = so.FindProperty("m_RendererFeatureMap");
+                map.arraySize = data.rendererFeatures.Count;
+                AssetDatabase.TryGetGUIDAndLocalFileIdentifier(ssao, out _, out long id);
+                map.GetArrayElementAtIndex(map.arraySize - 1).longValue = id;
+                so.ApplyModifiedProperties();
+            }
+            var fs = new SerializedObject(ssao);
+            void F(string n, float v) { var p = fs.FindProperty("m_Settings." + n); if (p != null) p.floatValue = v; }
+            F("Intensity", 1.6f);
+            F("Radius", 0.55f);
+            F("DirectLightingStrength", 0.35f);
+            F("Falloff", 60f);
+            fs.ApplyModifiedProperties();
+            EditorUtility.SetDirty(data);
+            AssetDatabase.SaveAssets();
         }
 
         static GameAssets BuildGameAssets()
@@ -149,7 +180,7 @@ namespace AU.EditorTools
             grain.intensity.Override(0.15f);
             var mb = Add<MotionBlur>();
             mb.mode.Override(MotionBlurMode.CameraOnly);
-            mb.intensity.Override(0.22f);
+            mb.intensity.Override(0.12f);
             mb.quality.Override(MotionBlurQuality.Medium);
             Add<LensDistortion>().intensity.Override(0f);
             EditorUtility.SetDirty(profile);

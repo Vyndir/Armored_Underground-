@@ -18,7 +18,7 @@ OUT = os.path.abspath(argv[0] if argv else os.path.join(os.path.dirname(__file__
 os.makedirs(OUT, exist_ok=True)
 
 rig = common.reset()
-for fn in DEFAULT + EXTRA:
+for fn in DEFAULT + ([] if '--default-only' in argv else EXTRA):
     fn(rig)
 
 tris = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in bpy.data.objects if o.type == 'MESH')

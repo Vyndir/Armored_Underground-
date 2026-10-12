@@ -44,6 +44,7 @@ namespace AU
             save = SaveData.Load();
             player = SpawnMech("YOU", save.loadout, 1f, true);
             player.Teleport(PlayerSpawn, 90f);
+            player.rig.AddCharacterLights();
             player.Damaged += (d, from) => { _chase?.Damage(Mathf.Clamp01(0.25f + d / 500f)); if (from) AudioFX.I?.Play("hit", player.Center, 0.5f, 0.6f); };
             player.StyleEvent += (n, amt) => _hud?.Style($"{n}  +OVERDRIVE");
             player.Recovered += () => { if (_race == null) { player.Repair(); } };

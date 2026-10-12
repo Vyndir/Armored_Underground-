@@ -40,7 +40,9 @@ def hd_pike(rig):
     c = Vector((0, -0.18, 7.22))
     loft('Base', [((0, -0.12, 7.0), (0, 0, 1), chamfer(0.66, 0.78, 0.14)), ((0, -0.12, 7.16), (0, 0, 1), chamfer(0.62, 0.74, 0.13))], 'frame', 'head')
     helmet = poly((-0.6, -0.12), (-0.46, 0.08), (-0.2, 0.26), (0.22, 0.3), (0.44, 0.16), (0.44, -0.22), (-0.3, -0.26))
-    prism('Helmet', helmet, 0.72, c, '+X', 'paint', 'head', bevel=0.03)
+    helm = prism('Helmet', helmet, 0.72, c, '+X', 'paint', 'head', bevel=0.03)
+    for sx in (1, -1):
+        slots(helm, c + Vector((sx * 0.36, 0.05, 0.12)), c + Vector((sx * 0.36, 0.3, 0.1)), 3, (sx, 0, 0), 0.04, 0.12, 0.025)
     prism('Crown', poly((-0.3, 0.0), (0.0, 0.1), (0.36, 0.06), (0.36, -0.04), (-0.3, -0.06)), 0.3, c + Vector((0, 0.05, 0.27)), '+X', 'accent', 'head', bevel=0.02)
     # visor: slanted glass band with a lit slit
     prism('Visor', poly((-0.3, -0.06), (0.3, -0.06), (0.26, 0.06), (-0.26, 0.06)), 0.08, c + Vector((0, -0.52, 0.02)), tuple(Vector((0, -1, 0.35)).normalized()), 'glass', 'head', bevel=0.01)
@@ -73,7 +75,7 @@ def cr_ferro(rig):
     loft('Ribs', [((0, 0.1, 5.7), (0, 0, 1), chamfer(1.45, 1.0, 0.3), FRONT), ((0, 0.08, 6.08), (0, 0, 1), chamfer(2.0, 1.2, 0.35), FRONT)], 'frame', 'chest', bevel=0.02)
     vents('RibVent', (0, -0.52, 5.92), 0.9, 0.2, 5, 'chest', normal=(0, -1, -0.25))
     # upper chest block: crisp chamfered bottom edge, broad flat front, tapering top
-    loft('Chest', [((0, 0.06, 6.04), (0, 0, 1), ridge(2.2, 0.6, 0.64, 0.5, 0.86, 0.25), FRONT),
+    chest = loft('Chest', [((0, 0.06, 6.04), (0, 0, 1), ridge(2.2, 0.6, 0.64, 0.5, 0.86, 0.25), FRONT),
                    ((0, 0.05, 6.14), (0, 0, 1), ridge(2.38, 0.82, 0.68, 0.5, 0.86, 0.25), FRONT),
                    ((0, 0.05, 6.78), (0, 0, 1), ridge(2.46, 0.88, 0.68, 0.5, 0.86, 0.25), FRONT),
                    ((0, 0.08, 7.0), (0, 0, 1), ridge(1.95, 0.58, 0.6, 0.5, 0.86, 0.25), FRONT)], 'paint', 'chest', bevel=0.025)
@@ -89,6 +91,11 @@ def cr_ferro(rig):
         prism('Trap.L', poly((-0.42, -0.36), (0.36, -0.3), (0.42, 0.3), (-0.38, 0.36)), 0.09, (0.72, 0.06, 6.98), tuple(Vector((0.35, 0, 1)).normalized()), 'paint', 'chest', up=(0, 1, 0), taper=0.88, panel=0.03)
         bolts('TrapBolt.L', (0.5, 0.3, 7.03), (0.9, 0.3, 6.9), 3, 'chest', normal=(0.35, 0, 1))
     prism('Seam', poly((-0.05, 0.36), (0.05, 0.36), (0.03, -0.38), (-0.03, -0.38)), 0.05, (0, -1.06, 6.44), tuple(Vector((0, -1, 0.14)).normalized()), 'accent', 'chest', bevel=0.008)
+    for sx in (1, -1):
+        side_n = Vector((sx * 0.86, -0.5, 0)).normalized()
+        recess(chest, (sx * 1.0, -0.55, 6.62), tuple(side_n), 0.5, 0.06, 0.03, light=True, bone='chest')
+        slots(chest, (sx * 1.02, -0.5, 6.3), (sx * 1.1, -0.36, 6.3), 3, tuple(side_n), 0.12, 0.05, 0.03)
+    recess(chest, (0, 0.0, 7.0), (0, 0, 1), 0.7, 0.4, 0.03, up=(0, 1, 0))
     text('Number', '07', (0.62, -0.99, 6.5), 0.15, 'chest', normal=tuple(Vector((0.36, -0.92, 0.16)).normalized()))
     # collar with a raised front neck guard
     loft('Collar', [((0, 0.06, 6.95), (0, 0, 1), chamfer(1.2, 0.95, 0.24)), ((0, 0.04, 7.1), (0, 0, 1), chamfer(0.92, 0.78, 0.2))], 'frame', 'chest', bevel=0.02)
@@ -123,7 +130,8 @@ def ar_hand(rig):
         # angular stepped pauldron: main block, outer shield, top step, light and marks
         sh = Vector((2.02, -0.02, 6.4))
         prism('Pauldron.L', poly((-0.72, -0.34), (0.56, -0.4), (0.72, 0.04), (0.48, 0.46), (-0.36, 0.52), (-0.76, 0.16)), 0.78, sh, '+X', 'paint', 'upperarm.L', taper=0.86, bevel=0.03, rot=(0, 0.18, 0))
-        prism('PauldronShield.L', poly((-0.62, -0.3), (0.46, -0.34), (0.6, 0.02), (0.4, 0.38), (-0.3, 0.42), (-0.64, 0.12)), 0.07, sh + Vector((0.42, 0, 0)), '+X', 'paint', 'upperarm.L', taper=0.92, panel=0.04, rot=(0, 0.18, 0))
+        shield = prism('PauldronShield.L', poly((-0.62, -0.3), (0.46, -0.34), (0.6, 0.02), (0.4, 0.38), (-0.3, 0.42), (-0.64, 0.12)), 0.07, sh + Vector((0.42, 0, 0)), '+X', 'paint', 'upperarm.L', taper=0.92, panel=0.04, rot=(0, 0.18, 0))
+        slots(shield, sh + Vector((0.47, -0.3, -0.18)), sh + Vector((0.47, 0.25, -0.18)), 5, (0.98, 0, 0.18), 0.04, 0.1, 0.025)
         prism('PauldronStep.L', poly((-0.5, -0.06), (0.36, -0.06), (0.3, 0.08), (-0.44, 0.08)), 0.62, sh + Vector((0.0, -0.06, 0.52)), '+X', 'accent', 'upperarm.L', bevel=0.012, rot=(0, 0.18, 0))
         prism('PauldronLip.L', poly((-0.6, -0.04), (0.5, -0.04), (0.5, 0.05), (-0.6, 0.05)), 0.7, sh + Vector((0.0, 0.0, -0.36)), '+X', 'frame', 'upperarm.L', bevel=0.01, rot=(0, 0.18, 0))
         light('PauldronLight.L', sh + Vector((0.465, -0.42, 0.05)), 0.03, 0.3, 'upperarm.L', normal=(1, 0, 0))
@@ -138,11 +146,13 @@ def ar_hand(rig):
         piston('ElbowPiston.L', U.p(0.45, -0.24, -0.25), F.p(0.35, -0.26, -0.3), 0.055, 'forearm.L')
         # forearm: inner frame + big ridged outer armor + front guard
         loft('ForeFrame.L', [(F.p(0.05), F.d, chamfer(0.46, 0.5, 0.1), tuple(F.f)), (F.p(0.98), F.d, chamfer(0.42, 0.46, 0.1), tuple(F.f))], 'frame', 'forearm.L')
-        loft('Forearm.L', [(F.p(0.1, 0.1, 0.02), F.d, ridge(0.66, 0.3, 0.14, 0.32, 0.6), (1, 0, 0)),
+        fore = loft('Forearm.L', [(F.p(0.1, 0.1, 0.02), F.d, ridge(0.66, 0.3, 0.14, 0.32, 0.6), (1, 0, 0)),
                            (F.p(0.55, 0.12, 0.04), F.d, ridge(0.86, 0.42, 0.16, 0.32, 0.6), (1, 0, 0)),
                            (F.p(0.95, 0.1, 0.02), F.d, ridge(0.72, 0.32, 0.14, 0.32, 0.6), (1, 0, 0))], 'paint', 'forearm.L', bevel=0.025)
         loft('ForeGuard.L', [(F.p(0.15, 0, 0.18), F.d, ridge(0.5, 0.2, 0.05, 0.3, 0.6), tuple(F.f)), (F.p(0.9, 0, 0.2), F.d, ridge(0.46, 0.24, 0.05, 0.3, 0.6), tuple(F.f))], 'accent', 'forearm.L', bevel=0.02)
         vents('ForeVent.L', F.p(0.45, 0, -0.27), 0.3, 0.32, 4, 'forearm.L', normal=tuple(-F.f), up=tuple(F.u))
+        slots(fore, F.p(0.3, 0.52, 0.14), F.p(0.75, 0.53, 0.14), 4, tuple((Vector((1, 0, 0)) * 0.8 + F.f * 0.6).normalized()), 0.04, 0.12, 0.025, up=tuple(F.u))
+        recess(fore, F.p(0.55, 0.52, -0.12), tuple((Vector((1, 0, 0)) * 0.8 - F.f * 0.6).normalized()), 0.05, 0.42, 0.03, up=tuple(F.u), light=True, bone='forearm.L')
         light('ForeLight.L', F.p(0.72, 0.53, 0.0), 0.025, 0.3, 'forearm.L', normal=(1, 0, 0), up=tuple(F.u))
         ring_stack('Wrist.L', F.p(1.0), F.d, [0.22, 0.2], [0.06, 0.08], 'joint', 'hand.L')
         _hand('')
@@ -172,11 +182,13 @@ def lg_strider(rig):
     with Mirror():
         # thigh: exposed inner frame + ridged front shell + side plate + rear piston
         loft('ThighFrame.L', [(T.p(0.08), T.d, chamfer(0.5, 0.56, 0.12), f_t), (T.p(0.92), T.d, chamfer(0.44, 0.5, 0.1), f_t)], 'frame', 'thigh.L')
-        loft('ThighShell.L', [(T.p(0.06, 0.02, 0.1), T.d, ridge(0.72, 0.36, 0.04, 0.3, 0.62), f_t),
+        thigh = loft('ThighShell.L', [(T.p(0.06, 0.02, 0.1), T.d, ridge(0.72, 0.36, 0.04, 0.3, 0.62), f_t),
                               (T.p(0.45, 0.03, 0.14), T.d, ridge(0.84, 0.44, 0.04, 0.3, 0.62), f_t),
                               (T.p(0.88, 0.02, 0.1), T.d, ridge(0.64, 0.32, 0.04, 0.3, 0.62), f_t)], 'paint', 'thigh.L', bevel=0.025)
         prism('ThighSide.L', poly((-0.48, -0.6), (0.42, -0.56), (0.48, 0.55), (-0.32, 0.65)), 0.08, T.p(0.42, 0.32, -0.02), '+X', 'paint', 'thigh.L', up=tuple(T.u), taper=0.9, panel=0.035)
         stripes('ThighHaz.L', T.p(0.76, 0.365, -0.02), 0.44, 0.08, 5, 'thigh.L', normal=(1, 0, 0), up=tuple(T.u))
+        slots(thigh, T.p(0.2, 0.14, 0.5), T.p(0.42, 0.14, 0.52), 4, tuple((T.f * 0.85 + T.s * 0.5).normalized()), 0.12, 0.04, 0.025, up=tuple(T.u))
+        recess(thigh, T.p(0.62, -0.16, 0.5), tuple((T.f * 0.85 - T.s * 0.5).normalized()), 0.05, 0.36, 0.03, up=tuple(T.u), light=True, bone='thigh.L')
         piston('ThighPiston.L', T.p(0.12, 0.05, -0.32), T.p(0.85, 0.05, -0.3), 0.065, 'thigh.L')
         greebles('ThighG.L', T.p(0.5, -0.24, -0.1), tuple(T.d), (0, -1, 0), 0.6, 0.2, 6, 'thigh.L', (-1, 0, 0))
         # knee
@@ -184,10 +196,14 @@ def lg_strider(rig):
         loft('KneeCap.L', [(S.p(-0.08, 0, 0.3), S.d, ridge(0.62, 0.22, 0.05, 0.3, 0.6), f_s), (S.p(0.14, 0, 0.36), S.d, ridge(0.7, 0.3, 0.05, 0.3, 0.6), f_s)], 'accent', 'shin.L', bevel=0.02)
         # shin: frame + long ridged front shell + calf shell
         loft('ShinFrame.L', [(S.p(0.05), S.d, chamfer(0.48, 0.52, 0.12), f_s), (S.p(0.95), S.d, chamfer(0.42, 0.46, 0.1), f_s)], 'frame', 'shin.L')
-        loft('ShinShell.L', [(S.p(0.16, 0, 0.14), S.d, ridge(0.72, 0.34, 0.04, 0.28, 0.6), f_s),
+        shin = loft('ShinShell.L', [(S.p(0.16, 0, 0.14), S.d, ridge(0.72, 0.34, 0.04, 0.28, 0.6), f_s),
                              (S.p(0.52, 0, 0.18), S.d, ridge(0.86, 0.44, 0.04, 0.28, 0.6), f_s),
                              (S.p(0.92, 0, 0.12), S.d, ridge(0.66, 0.28, 0.04, 0.28, 0.6), f_s)], 'paint', 'shin.L', bevel=0.025)
         light('ShinLight.L', S.p(0.62, 0.39, 0.15), 0.025, 0.5, 'shin.L', normal=(1, 0, 0), up=tuple(S.u))
+        facet = (S.f * 0.8 + S.s * 0.6).normalized()
+        recess(shin, S.p(0.5, 0.24, 0.5), tuple(facet), 0.06, 0.5, 0.03, up=tuple(S.u), light=True, bone='shin.L')
+        slots(shin, S.p(0.25, -0.2, 0.52), S.p(0.25, -0.05, 0.56), 3, tuple((S.f * 0.85 - S.s * 0.5).normalized()), 0.05, 0.16, 0.03, up=tuple(S.u))
+        recess(shin, S.p(0.8, 0, 0.42), tuple(S.f), 0.16, 0.22, 0.025, up=tuple(S.u))
         text('ShinMark.L', 'LG-03', S.p(0.3, 0.4, 0.12), 0.1, 'shin.L', normal=(1, 0, 0), up=tuple(S.u))
         loft('Calf.L', [(S.p(0.12, 0, -0.16), S.d, ridge(0.56, 0.28, 0.04, 0.35, 0.6), tuple(-S.f)),
                         (S.p(0.45, 0, -0.18), S.d, ridge(0.66, 0.36, 0.04, 0.35, 0.6), tuple(-S.f)),

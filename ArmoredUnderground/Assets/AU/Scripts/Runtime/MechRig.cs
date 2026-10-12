@@ -158,6 +158,22 @@ namespace AU
             }
         }
 
+        /// <summary>Character lighting rig (warm key + cool rim) that travels with the player's mech,
+        /// so armour detail reads on dark streets the way a lit hero character does.</summary>
+        public void AddCharacterLights()
+        {
+            void L(string n, Vector3 local, Color c, float intensity, float range)
+            {
+                var l = new GameObject(n).AddComponent<Light>();
+                l.transform.SetParent(transform, false);
+                l.transform.localPosition = local;
+                l.type = LightType.Point; l.color = c; l.intensity = intensity; l.range = range; l.shadows = LightShadows.None;
+            }
+            L("CharKey", new Vector3(2.5f, 9.5f, 6f), new Color(1f, 0.9f, 0.8f), 3.2f, 16f);
+            L("CharRim", new Vector3(-3.5f, 7.5f, -6f), new Color(0.45f, 0.75f, 1f), 3.6f, 15f);
+            L("CharFill", new Vector3(-4f, 3f, 4f), new Color(0.75f, 0.6f, 1f), 1.2f, 12f);
+        }
+
         public Transform Bone(string n) => _b.TryGetValue(n, out var t) ? t : null;
 
         static Transform Find(Transform t, string name)

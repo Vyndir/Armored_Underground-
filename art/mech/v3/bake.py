@@ -161,8 +161,8 @@ def build_bake_material():
     links.new(edge.outputs[0], wearm.inputs[0]); links.new(noise.outputs['Fac'], wearm.inputs[1])
     wear = _n(nodes, 'ShaderNodeMapRange', (-600, -2600))
     links.new(wearm.outputs[0], wear.inputs['Value'])
-    wear.inputs['From Min'].default_value = 0.32
-    wear.inputs['From Max'].default_value = 0.42
+    wear.inputs['From Min'].default_value = 0.36
+    wear.inputs['From Max'].default_value = 0.44
     # scratches: stretched noise on paint
     scr_map = _n(nodes, 'ShaderNodeMapping', (-1400, -3000))
     scr_map.inputs['Scale'].default_value = (1.0, 1.0, 22.0)
@@ -177,7 +177,7 @@ def build_bake_material():
     scr_m.inputs['From Min'].default_value = 0.70
     scr_m.inputs['From Max'].default_value = 0.72
     scr_w = _n(nodes, 'ShaderNodeMath', (-800, -3000), operation='MULTIPLY')
-    links.new(scr_m.outputs[0], scr_w.inputs[0]); scr_w.inputs[1].default_value = 0.45
+    links.new(scr_m.outputs[0], scr_w.inputs[0]); scr_w.inputs[1].default_value = 0.1
     wear_tot = _n(nodes, 'ShaderNodeMath', (-450, -2700), operation='MAXIMUM')
     links.new(wear.outputs[0], wear_tot.inputs[0]); links.new(scr_w.outputs[0], wear_tot.inputs[1])
     wear_p = _n(nodes, 'ShaderNodeMath', (-300, -2700), operation='MULTIPLY')   # wear only where painted
@@ -193,14 +193,41 @@ def build_bake_material():
     links.new(geo.outputs['Position'], sep.inputs[0])
     low = _n(nodes, 'ShaderNodeMapRange', (-1000, -3550))
     links.new(sep.outputs['Z'], low.inputs['Value'])
-    low.inputs['From Min'].default_value = 2.0
+    low.inputs['From Min'].default_value = 1.2
     low.inputs['From Max'].default_value = 0.0
     g1 = _n(nodes, 'ShaderNodeMath', (-800, -3300), operation='MULTIPLY_ADD')
-    links.new(inv_ao.outputs[0], g1.inputs[0]); g1.inputs[1].default_value = 1.3; links.new(low.outputs[0], g1.inputs[2])
+    links.new(inv_ao.outputs[0], g1.inputs[0]); g1.inputs[1].default_value = 1.6; links.new(low.outputs[0], g1.inputs[2])
+    # noise only modulates cavity grime (0.65..1) instead of blotching flat panels
+    gn = _n(nodes, 'ShaderNodeMath', (-700, -3450), operation='MULTIPLY_ADD', use_clamp=True)
+    links.new(grime_noise.outputs['Fac'], gn.inputs[0]); gn.inputs[1].default_value = 0.35; gn.inputs[2].default_value = 0.65
     grime = _n(nodes, 'ShaderNodeMath', (-600, -3300), operation='MULTIPLY')
-    links.new(g1.outputs[0], grime.inputs[0]); links.new(grime_noise.outputs['Fac'], grime.inputs[1])
+    links.new(g1.outputs[0], grime.inputs[0]); links.new(gn.outputs[0], grime.inputs[1])
     grime_c = _n(nodes, 'ShaderNodeMath', (-450, -3300), operation='MINIMUM', use_clamp=True)
     links.new(grime.outputs[0], grime_c.inputs[0]); grime_c.inputs[1].default_value = 0.85
+
+    # ---- vertical grime streaks running down from seams and recesses
+    st_map = _n(nodes, 'ShaderNodeMapping', (-1400, -5300))
+    st_map.inputs['Scale'].default_value = (14.0, 14.0, 0.9)
+    links.new(tc.outputs['Object'], st_map.inputs['Vector'])
+    st_noise = _n(nodes, 'ShaderNodeTexNoise', (-1200, -5300))
+    st_noise.inputs['Scale'].default_value = 3.0
+    st_noise.inputs['Detail'].default_value = 3.0
+    links.new(st_map.outputs[0], st_noise.inputs['Vector'])
+    st_m = _n(nodes, 'ShaderNodeMapRange', (-1000, -5300))
+    links.new(st_noise.outputs['Fac'], st_m.inputs['Value'])
+    st_m.inputs['From Min'].default_value = 0.52
+    st_m.inputs['From Max'].default_value = 0.68
+    # streaks show on vertical faces only
+    vert = _n(nodes, 'ShaderNodeMath', (-1000, -5450), operation='ABSOLUTE')
+    sep_nz = _n(nodes, 'ShaderNodeSeparateXYZ', (-1200, -5450))
+    links.new(geo.outputs['Normal'], sep_nz.inputs[0])
+    links.new(sep_nz.outputs['Z'], vert.inputs[0])
+    vert_m = _n(nodes, 'ShaderNodeMath', (-850, -5450), operation='SUBTRACT', use_clamp=True)
+    vert_m.inputs[0].default_value = 0.9; links.new(vert.outputs[0], vert_m.inputs[1])
+    streaks = _n(nodes, 'ShaderNodeMath', (-700, -5350), operation='MULTIPLY')
+    links.new(st_m.outputs[0], streaks.inputs[0]); links.new(vert_m.outputs[0], streaks.inputs[1])
+    grime_s = _n(nodes, 'ShaderNodeMath', (-550, -5350), operation='MULTIPLY_ADD', use_clamp=True)
+    links.new(streaks.outputs[0], grime_s.inputs[0]); grime_s.inputs[1].default_value = 0.2; links.new(grime_c.outputs[0], grime_s.inputs[2])
 
     # ---- panel lines: triplanar brick pattern -> thin grooves on painted armor
     sep_p = _n(nodes, 'ShaderNodeSeparateXYZ', (-1500, -4500))
@@ -249,12 +276,12 @@ def build_bake_material():
 
     # ---- final albedo: base, revealed metal where worn, darkened by grime
     worn_col = _n(nodes, 'ShaderNodeRGB', (-300, 1800))
-    worn_col.outputs[0].default_value = (*srgb('#8e939b'), 1)
+    worn_col.outputs[0].default_value = (*srgb('#6c7178'), 1)
     mix_w = _mix(nodes, links, 'RGBA', wear_p.outputs[0], base, worn_col.outputs[0], (0, 1900))
     dirt_col = _n(nodes, 'ShaderNodeRGB', (-300, 1600))
     dirt_col.outputs[0].default_value = (*srgb('#1b1712'), 1)
     grime_f = _n(nodes, 'ShaderNodeMath', (-150, 1600), operation='MULTIPLY')
-    links.new(grime_c.outputs[0], grime_f.inputs[0]); grime_f.inputs[1].default_value = 0.7
+    links.new(grime_s.outputs[0], grime_f.inputs[0]); grime_f.inputs[1].default_value = 0.6
     mix_g = _mix(nodes, links, 'RGBA', grime_f.outputs[0], mix_w, dirt_col.outputs[0], (200, 1900), 'MULTIPLY')
     # edge highlight on painted edges (lighter paint where light catches)
     edge_l = _n(nodes, 'ShaderNodeMath', (200, 1650), operation='MULTIPLY')
@@ -268,7 +295,7 @@ def build_bake_material():
     metal_f = _mix(nodes, links, 'FLOAT', wear_p.outputs[0], metal, 1.0, (0, 1200))
     rough_w = _mix(nodes, links, 'FLOAT', wear_p.outputs[0], rough, 0.32, (0, 400))
     rough_g = _n(nodes, 'ShaderNodeMath', (200, 400), operation='MULTIPLY_ADD', use_clamp=True)
-    links.new(grime_c.outputs[0], rough_g.inputs[0]); rough_g.inputs[1].default_value = 0.35; links.new(rough_w, rough_g.inputs[2])
+    links.new(grime_s.outputs[0], rough_g.inputs[0]); rough_g.inputs[1].default_value = 0.3; links.new(rough_w, rough_g.inputs[2])
     rough_n = _n(nodes, 'ShaderNodeMath', (350, 400), operation='MULTIPLY_ADD', use_clamp=True)
     links.new(noise.outputs['Fac'], rough_n.inputs[0]); rough_n.inputs[1].default_value = 0.12; links.new(rough_g.outputs[0], rough_n.inputs[2])
 

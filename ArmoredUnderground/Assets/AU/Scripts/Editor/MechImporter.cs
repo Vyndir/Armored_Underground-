@@ -98,9 +98,32 @@ namespace AU.EditorTools
             m.SetTexture("_MaskMap", T("mask"));
             m.SetTexture("_MRAMap", T("mra"));
             m.SetTexture("_BumpMap", T("normal"));
+            m.SetTexture("_DetailNormal", DetailNormal());
+            m.SetFloat("_DetailScale", 5f);
+            m.SetFloat("_DetailStrength", 0.1f);
+            m.SetFloat("_ClearCoat", 0.55f);
             m.enableInstancing = true;
             EditorUtility.SetDirty(m);
             return m;
+        }
+
+        static Texture2D _detail;
+        /// <summary>Tiling micro-surface normal (cast-metal pitting + fine brushing) for close-up detail.</summary>
+        static Texture2D DetailNormal()
+        {
+            if (_detail) return _detail;
+            const int S = 512;
+            var h = new float[S * S];
+            for (int y = 0; y < S; y++)
+                for (int x = 0; x < S; x++)
+                {
+                    float u = x / (float)S, v = y / (float)S;
+                    float pit = TextureGen.Fbm(u, v, 24, 3, 401);
+                    float brush = TextureGen.Fbm(u, v, 128, 2, 402);
+                    h[y * S + x] = pit * 0.7f + brush * 0.3f;
+                }
+            _detail = TextureGen.Save("Mech_DetailNormal", TextureGen.HeightToNormal(h, S, S, 0.8f), S, S, normal: true);
+            return _detail;
         }
 
         static Bounds Bounds(GameObject go)

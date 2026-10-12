@@ -15,6 +15,10 @@ Shader "AU/MechSurface"
         _AccentColor ("Accent Paint", Color) = (0.85, 0.45, 0.08, 1)
         _PaintGain ("Paint Gain", Float) = 1.8
         _HitFlash ("Hit Flash", Range(0,1)) = 0
+        _DetailNormal ("Detail Normal (tiling)", 2D) = "bump" {}
+        _DetailScale ("Detail Tiling", Float) = 5
+        _DetailStrength ("Detail Strength", Float) = 0.1
+        _ClearCoat ("Paint Clear Coat", Range(0,1)) = 0.55
     }
 
     SubShader
@@ -30,6 +34,9 @@ Shader "AU/MechSurface"
             half _PaintGain;
             half _BumpScale;
             half _HitFlash;
+            float _DetailScale;
+            half _DetailStrength;
+            half _ClearCoat;
         CBUFFER_END
         ENDHLSL
 
@@ -50,12 +57,14 @@ Shader "AU/MechSurface"
             #pragma multi_compile _ _CLUSTER_LIGHT_LOOP
             #pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
             #pragma multi_compile_fog
+            #define _CLEARCOAT 1
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
             TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
             TEXTURE2D(_MaskMap); SAMPLER(sampler_MaskMap);
             TEXTURE2D(_MRAMap);  SAMPLER(sampler_MRAMap);
             TEXTURE2D(_BumpMap); SAMPLER(sampler_BumpMap);
+            TEXTURE2D(_DetailNormal); SAMPLER(sampler_DetailNormal);
 
             struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; float4 tangentOS : TANGENT; float2 uv : TEXCOORD0; };
             struct Varyings
@@ -91,6 +100,8 @@ Shader "AU/MechSurface"
                 albedo = lerp(albedo, albedo * _AccentColor.rgb * (_PaintGain * 0.95h), mask.g);
 
                 half3 nTS = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, i.uv), _BumpScale);
+                half3 nD = UnpackNormalScale(SAMPLE_TEXTURE2D(_DetailNormal, sampler_DetailNormal, i.uv * _DetailScale), _DetailStrength);
+                nTS = normalize(half3(nTS.xy + nD.xy, nTS.z * nD.z));
                 half3 bitangent = i.tangentWS.w * cross(i.normalWS, i.tangentWS.xyz);
                 half3 nWS = normalize(TransformTangentToWorld(nTS, half3x3(i.tangentWS.xyz, bitangent, i.normalWS)));
 
@@ -102,6 +113,9 @@ Shader "AU/MechSurface"
                 s.normalTS = nTS;
                 s.alpha = 1;
                 s.emission = half3(1.0h, 0.35h, 0.2h) * _HitFlash * 2.0h;
+                half painted = saturate(mask.r + mask.g);
+                s.clearCoatMask = painted * _ClearCoat;
+                s.clearCoatSmoothness = 0.9h;
 
                 InputData d = (InputData)0;
                 d.positionWS = i.positionWS;
