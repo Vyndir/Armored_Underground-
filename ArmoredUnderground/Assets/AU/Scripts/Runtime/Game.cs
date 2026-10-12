@@ -63,7 +63,7 @@ namespace AU
             _garage = gameObject.AddComponent<Garage>();
             _garage.Init(save, cam);
             _garage.Closed += OnGarageClosed;
-            _garage.LoadoutChanged += () => { player.Setup(save.loadout); player.rig.ApplyPaint(save.loadout); MechVariants.Apply(player.transform, save.loadout); };
+            _garage.LoadoutChanged += () => { player.Setup(save.loadout); player.rig.Configure(save.loadout); };
 
             _menus.OnStart = StartGame;
             _menus.OnResume = Resume;
@@ -95,8 +95,7 @@ namespace AU
             var rig = go.AddComponent<MechRig>();
             rig.Init(mc);
             mc.rig = rig;
-            rig.ApplyPaint(l);
-            MechVariants.Apply(go.transform, l);
+            rig.Configure(l);
             _mechs.Add(mc);
             return mc;
         }
@@ -104,8 +103,7 @@ namespace AU
         void ApplyLoadout()
         {
             player.Setup(save.loadout);
-            player.rig.ApplyPaint(save.loadout);
-            MechVariants.Apply(player.transform, save.loadout);
+            player.rig.Configure(save.loadout);
         }
 
         // ------------------------------------------------------------------ markers

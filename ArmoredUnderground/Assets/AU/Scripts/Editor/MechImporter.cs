@@ -7,7 +7,7 @@ namespace AU.EditorTools
     /// (+Z forward, feet at origin, ~8m tall) and saves it as a prefab.</summary>
     public static class MechImporter
     {
-        const string Fbx = "Assets/AU/Art/Mech/stray.fbx";
+        const string Fbx = "Assets/AU/Art/Mech/stray_v2.fbx";
         const string PrefabPath = "Assets/AU/Generated/Mech_Stray.prefab";
 
         public static void Build(GameAssets assets)
@@ -29,6 +29,7 @@ namespace AU.EditorTools
             assets.mechGlow = Mats.LitMat("Mech_Glow", Color.black, 0.5f, 0f, null, null, null, new Color(0f, 0.85f, 1f) * 3.5f);
             assets.mechThrust = Mats.LitMat("Mech_Thrust", Color.black, 0.5f, 0f, null, null, null, new Color(1f, 0.6f, 0.25f) * 8f);
             assets.mechGlass = Mats.LitMat("Mech_Glass", new Color(0.01f, 0.012f, 0.015f), 0.95f, 0.4f);
+            assets.mechDecal = Mats.LitMat("Mech_Decal", new Color(0.85f, 0.86f, 0.88f), 0.45f, 0f);
 
             var model = AssetDatabase.LoadAssetAtPath<GameObject>(Fbx);
             var root = new GameObject("Mech_Stray");
@@ -51,13 +52,14 @@ namespace AU.EditorTools
                         : n.StartsWith("Emissive_Neon") ? assets.mechGlow
                         : n.StartsWith("Emissive_Thruster") ? assets.mechThrust
                         : n.StartsWith("Visor") ? assets.mechGlass
+                        : n.StartsWith("Decal") ? assets.mechDecal
                         : assets.mechFrame;
                 }
                 r.sharedMaterials = mats;
                 if (r is SkinnedMeshRenderer smr) smr.updateWhenOffscreen = false;
             }
 
-            // Normalize scale to ~8m and orientation to +Z forward
+            // Normalize scale to ~8m and orientation to +Z forward (measured on the default loadout)
             Bounds b = Bounds(inst);
             float height = b.size.y;
             if (height > 0.01f && Mathf.Abs(height - 8f) > 1.5f)
@@ -66,12 +68,12 @@ namespace AU.EditorTools
                 inst.transform.localScale *= s;
                 b = Bounds(inst);
             }
-            var visor = FindDeep(inst.transform, "Head_Visor");
-            if (visor)
+            var back = FindDeep(inst.transform, "P_bs_flare__booster");
+            if (back)
             {
-                var vr = visor.GetComponent<Renderer>();
-                Vector3 vc = vr ? vr.bounds.center : visor.position;
-                if (vc.z - b.center.z < 0) inst.transform.localRotation = Quaternion.Euler(0, 180, 0) * inst.transform.localRotation;
+                var vr = back.GetComponent<Renderer>();
+                // the booster is on the back: if it sits on +Z the model faces -Z, so turn it around
+                if (vr && vr.bounds.center.z - b.center.z > 0) inst.transform.localRotation = Quaternion.Euler(0, 180, 0) * inst.transform.localRotation;
             }
             b = Bounds(inst);
             inst.transform.localPosition -= new Vector3(b.center.x, b.min.y, b.center.z);
@@ -83,9 +85,12 @@ namespace AU.EditorTools
             Debug.Log($"[AU] Mech prefab built, height {height:F2} -> normalized");
         }
 
+        static readonly string[] DefaultParts = { "P_frame", "P_hd_pike", "P_cr_ferro", "P_ar_hand", "P_lg_strider", "P_bs_flare", "P_wp_hornet", "P_sh_swarm" };
+
         static Bounds Bounds(GameObject go)
         {
-            var rs = go.GetComponentsInChildren<Renderer>();
+            var rs = System.Array.FindAll(go.GetComponentsInChildren<Renderer>(), r => System.Array.Exists(DefaultParts, p => r.name.StartsWith(p + "__")));
+            if (rs.Length == 0) rs = go.GetComponentsInChildren<Renderer>();
             var b = rs[0].bounds;
             foreach (var r in rs) b.Encapsulate(r.bounds);
             return b;

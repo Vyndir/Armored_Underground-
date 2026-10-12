@@ -3,64 +3,68 @@ using UnityEngine;
 namespace AU
 {
     /// <summary>
-    /// Visual cues for equipped parts on the shared skeleton: proportions of head,
-    /// core, arms, legs, booster and pod change with the part. (Interim until each
-    /// part has its own modelled mesh.) Child bones get inverse scale so changes stay local.
+    /// Part swapping on the modular mech: every part has its own meshes named
+    /// P_&lt;partId&gt;__&lt;bone or marker&gt;. Shows the equipped part in each slot
+    /// (plus the shared P_frame) and hides the rest.
     /// </summary>
     public static class MechVariants
     {
         public static void Apply(Transform model, Loadout l)
         {
-            Desired.Clear();
-            Set(model, "head", l.head switch { "hd_moth" => new Vector3(1.25f, 0.75f, 1.15f), "hd_bastion" => new Vector3(1.25f, 1.2f, 1.2f), _ => Vector3.one });
-            Set(model, "chest", l.core switch { "cr_wasp" => new Vector3(0.86f, 1f, 0.9f), "cr_anvil" => new Vector3(1.18f, 1.06f, 1.15f), _ => Vector3.one });
-            var arm = l.arms switch { "ar_needle" => new Vector3(0.8f, 1f, 0.8f), "ar_hauler" => new Vector3(1.25f, 1f, 1.2f), _ => Vector3.one };
-            foreach (var s in new[] { ".L", ".R" })
+            foreach (var r in model.GetComponentsInChildren<Renderer>(true))
             {
-                Set(model, "upperarm" + s, arm);
-                Set(model, "forearm" + s, arm);
-                var leg = l.legs switch
-                {
-                    "lg_hopper" => new Vector3(0.85f, 1.08f, 0.9f),
-                    "lg_glide" => new Vector3(1.1f, 0.88f, 1.05f),
-                    "lg_bulwark" => new Vector3(1.32f, 0.95f, 1.25f),
-                    _ => Vector3.one,
-                };
-                Set(model, "thigh" + s, leg);
-                Set(model, "shin" + s, leg);
-                Set(model, "foot" + s, l.legs == "lg_bulwark" ? new Vector3(1.2f, 1.2f, 1.2f) : l.legs == "lg_glide" ? new Vector3(1.15f, 0.6f, 1.1f) : Vector3.one);
+                string n = r.gameObject.name;
+                if (!n.StartsWith("P_")) continue;
+                int sep = n.IndexOf("__", System.StringComparison.Ordinal);
+                if (sep < 0) continue;
+                string id = n.Substring(2, sep - 2);
+                bool on = id == "frame" || Equipped(l, id);
+                r.gameObject.SetActive(on);
             }
-            Set(model, "booster", l.booster switch { "bs_comet" => new Vector3(1.15f, 1.2f, 1.2f), "bs_tern" => new Vector3(0.9f, 0.9f, 0.9f), _ => Vector3.one });
-            Set(model, "pod.L", l.shoulder switch { "sh_mines" => new Vector3(0.9f, 0.6f, 1f), "sh_spear" => new Vector3(0.8f, 1.2f, 1.6f), _ => Vector3.one });
-            Set(model, "hand.R", l.weapon switch { "wp_lance" => new Vector3(1f, 1f, 1.45f), "wp_gale" => new Vector3(1.25f, 1.25f, 0.85f), "wp_maul" => new Vector3(1.3f, 1.3f, 0.9f), _ => Vector3.one });
-            Resolve(model, Vector3.one);
         }
 
-        static readonly System.Collections.Generic.Dictionary<string, Vector3> Desired = new();
-        static readonly System.Collections.Generic.Dictionary<Transform, Vector3> Rest = new();
-
-        // local scale = desired / parent's desired, so each bone's look is independent
-        static void Resolve(Transform t, Vector3 parentDesired)
+        static bool Equipped(Loadout l, string id)
         {
-            Vector3 mine = parentDesired;
-            if (IsBone(t.name) || t.name == "pelvis")
-            {
-                mine = Desired.TryGetValue(t.name, out var d) ? d : Vector3.one;
-                if (!Rest.TryGetValue(t, out var rest)) Rest[t] = rest = t.localScale;
-                t.localScale = Vector3.Scale(rest, new Vector3(mine.x / parentDesired.x, mine.y / parentDesired.y, mine.z / parentDesired.z));
-            }
-            foreach (Transform c in t) Resolve(c, mine);
+            foreach (Slot s in Parts.Slots) if (l[s] == id) return true;
+            return false;
         }
 
-        static void Set(Transform root, string bone, Vector3 scale) => Desired[bone] = scale;
-
-        static bool IsBone(string n) => n is "upperarm.L" or "upperarm.R" or "head" or "chest" or "booster" or "pod.L" or "shoulder.L" or "shoulder.R" or "forearm.L" or "forearm.R" or "hand.L" or "hand.R" or "shin.L" or "shin.R" or "foot.L" or "foot.R" or "spine" or "thigh.L" or "thigh.R";
-
-        static Transform Find(Transform t, string name)
+        /// <summary>Find the active renderer for a part marker, e.g. ("wp_hornet", "Barrel").</summary>
+        public static Renderer Marker(Transform model, string partId, string marker)
         {
-            if (t.name == name) return t;
-            foreach (Transform c in t) { var f = Find(c, name); if (f) return f; }
+            string name = $"P_{partId}__{marker}";
+            foreach (var r in model.GetComponentsInChildren<Renderer>(true))
+                if (r.gameObject.name == name) return r;
             return null;
+        }
+
+        public static System.Collections.Generic.List<Renderer> Markers(Transform model, string partId, string prefix)
+        {
+            var list = new System.Collections.Generic.List<Renderer>();
+            string start = $"P_{partId}__{prefix}";
+            foreach (var r in model.GetComponentsInChildren<Renderer>(true))
+                if (r.gameObject.name.StartsWith(start)) list.Add(r);
+            return list;
+        }
+
+        /// <summary>World-space bounds of a skinned part in its current pose (bind-pose mesh bounds through its bone).</summary>
+        public static (Vector3 center, Vector3 axisMin, Vector3 axisMax) PoseBounds(Renderer r)
+        {
+            if (r is SkinnedMeshRenderer smr && smr.sharedMesh && smr.bones.Length > 0 && smr.sharedMesh.bindposes.Length > 0)
+            {
+                var mesh = smr.sharedMesh;
+                var b = mesh.bounds;
+                int bi = 0;
+                var bw = mesh.boneWeights;
+                if (bw != null && bw.Length > 0) bi = Mathf.Clamp(bw[0].boneIndex0, 0, smr.bones.Length - 1);
+                Matrix4x4 m = smr.bones[bi].localToWorldMatrix * mesh.bindposes[Mathf.Min(bi, mesh.bindposes.Length - 1)];
+                // longest axis endpoints
+                Vector3 e = b.extents;
+                Vector3 axis = e.x >= e.y && e.x >= e.z ? new Vector3(e.x, 0, 0) : e.y >= e.z ? new Vector3(0, e.y, 0) : new Vector3(0, 0, e.z);
+                return (m.MultiplyPoint3x4(b.center), m.MultiplyPoint3x4(b.center - axis), m.MultiplyPoint3x4(b.center + axis));
+            }
+            var bb = r.bounds;
+            return (bb.center, bb.center - Vector3.forward * bb.extents.z, bb.center + Vector3.forward * bb.extents.z);
         }
     }
 }

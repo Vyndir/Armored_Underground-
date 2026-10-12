@@ -70,10 +70,10 @@ namespace AU
             {
                 float ang = i * 30f;
                 var rot = Quaternion.Euler(0, ang + 180, 0);
-                Vector3 p = rot * new Vector3(0, 10, -26);
-                Prim(PrimitiveType.Cube, p, new Vector3(28, 22, 1), wallMat, rot);
-                Prim(PrimitiveType.Cube, p + rot * new Vector3(-9, 0, 0.6f), new Vector3(0.25f, 20, 0.2f), i % 2 == 0 ? a.gate : a.thrusterCore, rot);
-                Prim(PrimitiveType.Cube, p + rot * new Vector3(9, 0, 0.6f), new Vector3(0.25f, 20, 0.2f), a.gate, rot);
+                Vector3 p = rot * new Vector3(0, 10, -40);
+                Prim(PrimitiveType.Cube, p, new Vector3(44, 26, 1), wallMat, rot);
+                Prim(PrimitiveType.Cube, p + rot * new Vector3(-14, 0, 0.6f), new Vector3(0.25f, 24, 0.2f), i % 2 == 0 ? a.gate : a.thrusterCore, rot);
+                Prim(PrimitiveType.Cube, p + rot * new Vector3(14, 0, 0.6f), new Vector3(0.25f, 24, 0.2f), a.gate, rot);
             }
             // overhead truss with lights
             void Spot(Vector3 p, Color c, float intensity, float angle)
@@ -98,8 +98,7 @@ namespace AU
             _preview = Instantiate(GameAssets.I.mechPrefab, Origin + Vector3.up * 0.32f, Quaternion.Euler(0, 180, 0));
             _previewRig = _preview.AddComponent<MechRig>();
             _previewRig.Init(null);
-            _previewRig.ApplyPaint(_save.loadout);
-            MechVariants.Apply(_preview.transform, _save.loadout);
+            _previewRig.Configure(_save.loadout);
         }
 
         // ------------------------------------------------------------------ UI
@@ -313,7 +312,7 @@ namespace AU
             var pad = Gamepad.current;
             if (pad != null) _angle -= pad.rightStick.ReadValue().x * dt * 2f;
             if (PlayerDriver.BackPressed) { Close(); return; }
-            float r = 27f;
+            float r = 24f;
             Vector3 focus = Origin + Vector3.up * 4.6f;
             _cam.fieldOfView = 34f;
             _cam.transform.position = Origin + new Vector3(Mathf.Sin(_angle) * r, 7f, Mathf.Cos(_angle) * r);

@@ -7,7 +7,7 @@ namespace AU
     public class GameAssets : ScriptableObject
     {
         public Material rain, splash, steam, spark, smoke, fire, tracer, tracerEnemy, thruster, thrusterCore, gate, gateBeam, markerGlow, explosion, decalScorch;
-        public Material mechPaint, mechAccent, mechFrame, mechJoint, mechSteel, mechGlow, mechThrust, mechGlass;
+        public Material mechPaint, mechAccent, mechFrame, mechJoint, mechSteel, mechGlow, mechThrust, mechGlass, mechDecal;
         public GameObject mechPrefab;
         public Texture2D softDot;
 

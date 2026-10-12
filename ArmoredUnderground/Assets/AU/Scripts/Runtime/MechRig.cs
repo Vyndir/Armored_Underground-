@@ -38,28 +38,91 @@ namespace AU
                 var t = Find(transform, n);
                 if (t) { _b[n] = t; _rest[t] = t.localRotation; }
             }
-            _renderers = GetComponentsInChildren<Renderer>();
             _mpb = new MaterialPropertyBlock();
 
-            // muzzle at the tip of the rifle barrel
-            var barrel = Find(transform, "Rifle_Barrel");
+            boosterMount = Bone("booster") ? Bone("booster") : transform;
+            var lgo = new GameObject("BoostLight");
+            lgo.transform.SetParent(boosterMount, false);
+            lgo.transform.position = transform.TransformPoint(new Vector3(0, 4.5f, -2.5f));
+            _boostLight = lgo.AddComponent<Light>();
+            _boostLight.type = LightType.Point;
+            _boostLight.range = 14f;
+            _boostLight.intensity = 0;
+            _boostLight.shadows = LightShadows.None;
+        }
+
+        /// <summary>Show the equipped parts, then place the muzzle, missile pod mount and booster flames on them.</summary>
+        public void Configure(Loadout l)
+        {
+            MechVariants.Apply(transform, l);
+            _renderers = GetComponentsInChildren<Renderer>();
+
+            // muzzle: the barrel end farthest from the hand
+            if (muzzle) Destroy(muzzle.gameObject);
             var hand = Bone("hand.R");
             muzzle = new GameObject("Muzzle").transform;
             muzzle.SetParent(hand ? hand : transform, false);
-            if (barrel && barrel.TryGetComponent<Renderer>(out var br))
+            var barrel = MechVariants.Marker(transform, l.weapon, "Barrel");
+            if (barrel)
             {
-                var bnd = br.bounds;
-                muzzle.position = bnd.center + transform.forward * bnd.extents.z;
+                var (c, a, b) = MechVariants.PoseBounds(barrel);
+                Vector3 hp = hand ? hand.position : transform.position;
+                muzzle.position = (a - hp).sqrMagnitude > (b - hp).sqrMagnitude ? a : b;
             }
-            else muzzle.position = transform.position + transform.forward * 4f + Vector3.up * 3.4f;
+            else muzzle.position = transform.TransformPoint(new Vector3(-1.95f, 3.4f, 4f));
             muzzle.rotation = transform.rotation;
 
-            podMount = new GameObject("PodMount").transform;
-            podMount.SetParent(Bone("pod.L") ? Bone("pod.L") : transform, false);
-            podMount.position = transform.position + transform.TransformVector(new Vector3(-1.15f, 7.3f, 0.2f));
+            if (!podMount)
+            {
+                podMount = new GameObject("PodMount").transform;
+                podMount.SetParent(Bone("pod.L") ? Bone("pod.L") : transform, false);
+                podMount.position = transform.TransformPoint(new Vector3(-1.15f, 7.4f, 0.4f));
+            }
 
-            boosterMount = Bone("booster") ? Bone("booster") : transform;
-            BuildThrusters();
+            BuildThrusters(l);
+            ApplyPaint(l);
+        }
+
+        void BuildThrusters(Loadout l)
+        {
+            foreach (var f in _flames) if (f) Destroy(f.gameObject);
+            _flames.Clear(); _flameBase.Clear(); _flameRenderers.Clear();
+            var a = GameAssets.I;
+            var nozzles = new List<Vector3>();
+            foreach (var r in MechVariants.Markers(transform, l.booster, "Nozzle"))
+            {
+                var (c, lo, hi) = MechVariants.PoseBounds(r);
+                nozzles.Add(c - Vector3.up * 0.3f);
+            }
+            if (nozzles.Count == 0)
+            {
+                nozzles.Add(transform.TransformPoint(new Vector3(0.55f, 5.0f, -1.4f)));
+                nozzles.Add(transform.TransformPoint(new Vector3(-0.55f, 5.0f, -1.4f)));
+            }
+            foreach (var p in nozzles)
+            {
+                var f = new GameObject("Flame").transform;
+                f.SetParent(boosterMount, true);
+                f.position = p;
+                f.rotation = Quaternion.LookRotation((Vector3.down - transform.forward * 0.9f).normalized, -transform.forward);
+                var cone = new GameObject("Cone", typeof(MeshFilter), typeof(MeshRenderer));
+                cone.transform.SetParent(f, false);
+                cone.GetComponent<MeshFilter>().sharedMesh = ConeMesh;
+                var r = cone.GetComponent<Renderer>();
+                r.sharedMaterial = a.thruster;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                var core = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                Destroy(core.GetComponent<Collider>());
+                core.transform.SetParent(f, false);
+                core.transform.localScale = new Vector3(0.3f, 0.3f, 0.45f);
+                core.transform.localPosition = new Vector3(0, 0, 0.15f);
+                var cr = core.GetComponent<Renderer>();
+                cr.sharedMaterial = a.thrusterCore;
+                cr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                _flames.Add(f);
+                _flameBase.Add(f.localScale);
+                _flameRenderers.Add(r);
+            }
         }
 
         static Mesh _cone;
@@ -103,52 +166,6 @@ namespace AU
             return null;
         }
 
-        void BuildThrusters()
-        {
-            var a = GameAssets.I;
-            // Find nozzle renderers to place flames; fall back to fixed offsets
-            var nozzles = new List<Vector3>();
-            foreach (var r in GetComponentsInChildren<Renderer>())
-                if (r.name.StartsWith("Booster_Nozzle")) nozzles.Add(r.bounds.center - Vector3.up * r.bounds.extents.y);
-            if (nozzles.Count == 0)
-            {
-                nozzles.Add(transform.TransformPoint(new Vector3(0.55f, 5.0f, -1.4f)));
-                nozzles.Add(transform.TransformPoint(new Vector3(-0.55f, 5.0f, -1.4f)));
-            }
-            foreach (var p in nozzles)
-            {
-                var f = new GameObject("Flame").transform;
-                f.SetParent(boosterMount, true);
-                f.position = p;
-                f.rotation = Quaternion.LookRotation((Vector3.down - transform.forward * 0.9f).normalized, -transform.forward);
-                var cone = new GameObject("Cone", typeof(MeshFilter), typeof(MeshRenderer));
-                cone.transform.SetParent(f, false);
-                cone.GetComponent<MeshFilter>().sharedMesh = ConeMesh;
-                var r = cone.GetComponent<Renderer>();
-                r.sharedMaterial = a.thruster;
-                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                var core = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                Destroy(core.GetComponent<Collider>());
-                core.transform.SetParent(f, false);
-                core.transform.localScale = new Vector3(0.3f, 0.3f, 0.45f);
-                core.transform.localPosition = new Vector3(0, 0, 0.15f);
-                var cr = core.GetComponent<Renderer>();
-                cr.sharedMaterial = a.thrusterCore;
-                cr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                _flames.Add(f);
-                _flameBase.Add(f.localScale);
-                _flameRenderers.Add(r);
-            }
-            var lgo = new GameObject("BoostLight");
-            lgo.transform.SetParent(boosterMount, false);
-            lgo.transform.position = transform.TransformPoint(new Vector3(0, 4.5f, -2.5f));
-            _boostLight = lgo.AddComponent<Light>();
-            _boostLight.type = LightType.Point;
-            _boostLight.range = 14f;
-            _boostLight.intensity = 0;
-            _boostLight.shadows = LightShadows.None;
-        }
-
         public void ApplyPaint(Loadout l)
         {
             if (_renderers == null) return;
@@ -188,7 +205,12 @@ namespace AU
 
         void LateUpdate()
         {
-            if (!_mech) return;
+            if (!_mech)
+            {
+                // showroom preview: idle flames
+                for (int i = 0; i < _flames.Count; i++) _flames[i].localScale = Vector3.Scale(_flameBase[i], new Vector3(0.65f, 0.65f, 0.35f + Random.value * 0.05f));
+                return;
+            }
             float dt = Time.deltaTime;
             var m = _mech;
             Vector3 local = Quaternion.Inverse(transform.rotation) * m.velocity;
