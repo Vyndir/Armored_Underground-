@@ -24,7 +24,8 @@ namespace AU
         Light _boostLight;
         MaterialPropertyBlock _mpb;
         Renderer[] _renderers;
-        float _hitFlash;
+        float _hitFlash, _flashShown;
+        readonly List<(Renderer r, int i)> _surfaceSlots = new();
 
         static readonly string[] BoneNames = { "pelvis", "spine", "chest", "head", "booster", "pod.L",
             "shoulder.L", "upperarm.L", "forearm.L", "hand.L", "shoulder.R", "upperarm.R", "forearm.R", "hand.R",
@@ -170,6 +171,7 @@ namespace AU
         {
             if (_renderers == null) return;
             var a = GameAssets.I;
+            _surfaceSlots.Clear();
             foreach (var r in _renderers)
             {
                 if (_flameRenderers.Contains(r)) continue;
@@ -179,6 +181,14 @@ namespace AU
                     if (mats[i] == a.mechPaint) { r.GetPropertyBlock(_mpb, i); _mpb.SetColor("_BaseColor", l.paint); r.SetPropertyBlock(_mpb, i); }
                     else if (mats[i] == a.mechAccent) { r.GetPropertyBlock(_mpb, i); _mpb.SetColor("_BaseColor", l.accent); r.SetPropertyBlock(_mpb, i); }
                     else if (mats[i] == a.mechGlow) { r.GetPropertyBlock(_mpb, i); _mpb.SetColor("_EmissionColor", l.neon * 3.5f); r.SetPropertyBlock(_mpb, i); }
+                    else if (mats[i] && mats[i].shader && mats[i].shader.name == "AU/MechSurface")
+                    {
+                        r.GetPropertyBlock(_mpb, i);
+                        _mpb.SetColor("_PaintColor", l.paint);
+                        _mpb.SetColor("_AccentColor", l.accent);
+                        r.SetPropertyBlock(_mpb, i);
+                        _surfaceSlots.Add((r, i));
+                    }
                 }
             }
             if (_boostLight) _boostLight.color = Color.Lerp(l.neon, Color.white, 0.3f);
@@ -278,6 +288,18 @@ namespace AU
                 _boostLight.intensity = Mathf.Lerp(_boostLight.intensity, lvl * (m.overdriveActive ? 14f : 7f), 1 - Mathf.Exp(-dt * 12f));
             }
 
+            float flash = Mathf.Clamp01(_hitFlash / 0.12f);
+            if (flash > 0 || _flashShown > 0)
+            {
+                foreach (var (r, i) in _surfaceSlots)
+                {
+                    if (!r) continue;
+                    r.GetPropertyBlock(_mpb, i);
+                    _mpb.SetFloat("_HitFlash", flash);
+                    r.SetPropertyBlock(_mpb, i);
+                }
+                _flashShown = flash;
+            }
             if (_hitFlash > 0)
             {
                 _hitFlash -= dt;

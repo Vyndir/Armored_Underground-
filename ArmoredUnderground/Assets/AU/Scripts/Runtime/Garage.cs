@@ -19,6 +19,8 @@ namespace AU
         public bool IsOpen { get; private set; }
         public event Action Closed;
         public event Action LoadoutChanged;
+        /// <summary>Automated beauty shots: (angle, radius, height, fov, focus height); hides the UI.</summary>
+        public (float, float, float, float, float)? PhotoMode;
 
         SaveData _save;
         Camera _cam;
@@ -95,7 +97,7 @@ namespace AU
         void RebuildPreview()
         {
             if (_preview) Destroy(_preview);
-            _preview = Instantiate(GameAssets.I.mechPrefab, Origin + Vector3.up * 0.32f, Quaternion.Euler(0, 180, 0));
+            _preview = Instantiate(GameAssets.I.mechPrefab, Origin + Vector3.up * 0.32f, Quaternion.identity);
             _previewRig = _preview.AddComponent<MechRig>();
             _previewRig.Init(null);
             _previewRig.Configure(_save.loadout);
@@ -167,7 +169,7 @@ namespace AU
             {
                 Color.RGBToHSV(get(), out _, out _, out float vv);
                 var c = Color.HSVToRGB(val, sat, label == "PRIMARY" ? Mathf.Max(0.15f, Mathf.Min(vv, 0.45f)) : 1f);
-                if (label == "PRIMARY") c = Color.HSVToRGB(val, 0.35f, 0.3f);
+                if (label == "PRIMARY") c = Color.HSVToRGB(val, 0.3f, 0.46f);
                 set(c);
                 _previewRig?.ApplyPaint(_save.loadout);
                 _save.Save();
@@ -307,6 +309,16 @@ namespace AU
             if (!IsOpen) return;
             float dt = Time.unscaledDeltaTime;
             var m = Mouse.current;
+            if (PhotoMode.HasValue)
+            {
+                var (pa, pr, ph, pf, fh) = PhotoMode.Value;
+                _canvas.gameObject.SetActive(false);
+                _cam.fieldOfView = pf;
+                _cam.transform.position = Origin + new Vector3(Mathf.Sin(pa) * pr, ph, Mathf.Cos(pa) * pr);
+                _cam.transform.LookAt(Origin + Vector3.up * fh);
+                return;
+            }
+            _canvas.gameObject.SetActive(true);
             if (m != null && m.leftButton.isPressed && !EventSystem.current.IsPointerOverGameObject()) _angle -= m.delta.ReadValue().x * 0.006f;
             else _angle += dt * 0.15f;
             var pad = Gamepad.current;

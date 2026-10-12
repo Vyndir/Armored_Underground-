@@ -393,6 +393,18 @@ namespace AU
             OpenGarage();
             yield return new WaitForSeconds(1.5f);
             yield return CaptureTour.Shot("04_garage", 2);
+            // beauty shots of the mech model
+            var beauty = new (string, float, float, float, float, float)[]
+            {
+                ("m1_front34", 0.55f, 15f, 6.5f, 38f, 4.6f), ("m2_back34", 2.6f, 15f, 7f, 38f, 4.8f),
+                ("m3_chest", 0.35f, 7.5f, 7.2f, 34f, 6.2f), ("m4_legs", -0.5f, 8f, 2.2f, 36f, 2.2f), ("m5_side", 1.57f, 14f, 5f, 38f, 4.5f),
+            };
+            foreach (var b in beauty)
+            {
+                _garage.PhotoMode = (b.Item2, b.Item3, b.Item4, b.Item5, b.Item6);
+                yield return CaptureTour.Shot(b.Item1, 6);
+            }
+            _garage.PhotoMode = null;
             save.owned.Add("lg_glide"); save.loadout.legs = "lg_glide"; save.owned.Add("wp_gale"); save.loadout.weapon = "wp_gale";
             save.loadout.paint = new Color(0.32f, 0.08f, 0.1f); save.loadout.neon = new Color(1f, 0.2f, 0.6f);
             _garage.Close(); OpenGarage();

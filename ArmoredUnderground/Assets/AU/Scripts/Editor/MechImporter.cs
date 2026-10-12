@@ -7,7 +7,8 @@ namespace AU.EditorTools
     /// (+Z forward, feet at origin, ~8m tall) and saves it as a prefab.</summary>
     public static class MechImporter
     {
-        const string Fbx = "Assets/AU/Art/Mech/stray_v2.fbx";
+        const string Fbx = "Assets/AU/Art/Mech/v3/stray_v3.fbx";
+        const string TexDir = "Assets/AU/Art/Mech/v3/textures";
         const string PrefabPath = "Assets/AU/Generated/Mech_Stray.prefab";
 
         public static void Build(GameAssets assets)
@@ -19,6 +20,7 @@ namespace AU.EditorTools
             imp.importAnimation = false;
             imp.materialImportMode = ModelImporterMaterialImportMode.ImportStandard;
             imp.importNormals = ModelImporterNormals.Import;
+            imp.importTangents = ModelImporterTangents.CalculateMikk;
             imp.SaveAndReimport();
 
             assets.mechPaint = Mats.LitMat("Mech_Paint", new Color(0.23f, 0.26f, 0.31f), 0.62f, 0.55f);
@@ -44,15 +46,15 @@ namespace AU.EditorTools
                 for (int i = 0; i < mats.Length; i++)
                 {
                     string n = mats[i] ? mats[i].name : "";
-                    mats[i] = n.StartsWith("Paint_Primary") ? assets.mechPaint
-                        : n.StartsWith("Paint_Accent") ? assets.mechAccent
-                        : n.StartsWith("Frame") ? assets.mechFrame
-                        : n.StartsWith("Joint") ? assets.mechJoint
-                        : n.StartsWith("Steel") ? assets.mechSteel
-                        : n.StartsWith("Emissive_Neon") ? assets.mechGlow
-                        : n.StartsWith("Emissive_Thruster") ? assets.mechThrust
-                        : n.StartsWith("Visor") ? assets.mechGlass
-                        : n.StartsWith("Decal") ? assets.mechDecal
+                    mats[i] = n.StartsWith("MB_") ? PartMaterial(n.Substring(3).Split('.', ' ')[0])
+                        : n.StartsWith("MC_glow") ? assets.mechGlow
+                        : n.StartsWith("MC_thrust") ? assets.mechThrust
+                        : n.StartsWith("MC_glass") ? assets.mechGlass
+                        : n.StartsWith("MC_steel") ? assets.mechSteel
+                        : n.StartsWith("MC_decal") ? assets.mechDecal
+                        : n.StartsWith("MC_joint") || n.StartsWith("MC_rubber") ? assets.mechJoint
+                        : n.StartsWith("MC_accent") ? assets.mechAccent
+                        : n.StartsWith("MC_paint") ? assets.mechPaint
                         : assets.mechFrame;
                 }
                 r.sharedMaterials = mats;
@@ -86,6 +88,20 @@ namespace AU.EditorTools
         }
 
         static readonly string[] DefaultParts = { "P_frame", "P_hd_pike", "P_cr_ferro", "P_ar_hand", "P_lg_strider", "P_bs_flare", "P_wp_hornet", "P_sh_swarm" };
+
+        /// <summary>Material for one part: AU/MechSurface with that part's baked texture set.</summary>
+        static Material PartMaterial(string pid)
+        {
+            var m = Mats.Custom("MechPart_" + pid, Shader.Find("AU/MechSurface"));
+            Texture2D T(string k) => AssetDatabase.LoadAssetAtPath<Texture2D>($"{TexDir}/{pid}_{k}.png");
+            m.SetTexture("_BaseMap", T("albedo"));
+            m.SetTexture("_MaskMap", T("mask"));
+            m.SetTexture("_MRAMap", T("mra"));
+            m.SetTexture("_BumpMap", T("normal"));
+            m.enableInstancing = true;
+            EditorUtility.SetDirty(m);
+            return m;
+        }
 
         static Bounds Bounds(GameObject go)
         {

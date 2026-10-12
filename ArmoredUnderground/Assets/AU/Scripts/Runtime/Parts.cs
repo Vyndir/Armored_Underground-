@@ -97,7 +97,7 @@ namespace AU
     {
         public string head = "hd_pike", core = "cr_ferro", arms = "ar_hand", legs = "lg_strider",
             booster = "bs_flare", generator = "gn_ember", weapon = "wp_hornet", shoulder = "sh_swarm";
-        public Color paint = new(0.23f, 0.26f, 0.31f), accent = new(0.85f, 0.45f, 0.08f), neon = new(0f, 0.85f, 1f);
+        public Color paint = new(0.36f, 0.4f, 0.46f), accent = new(0.9f, 0.5f, 0.1f), neon = new(0f, 0.85f, 1f);
 
         public string this[Slot s]
         {
