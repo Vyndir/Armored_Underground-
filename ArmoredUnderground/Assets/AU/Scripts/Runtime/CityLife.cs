@@ -70,6 +70,8 @@ namespace AU
             BuildPedMesh();
             SpawnParkedMechs();
             SpawnBoats();
+            SpawnTrain();
+            SpawnDrones();
         }
 
         Vector3 Focus => Camera.main ? Camera.main.transform.position : Vector3.zero;
@@ -533,6 +535,123 @@ namespace AU
             }
         }
 
+        // ------------------------------------------------------------------ maglev train
+        readonly List<Transform> _train = new();
+        float _trainS;
+        float _loopLen;
+
+        void SpawnTrain()
+        {
+            var body = new MeshBuilder(); var glass = new MeshBuilder(); var led = new MeshBuilder();
+            body.Box(new Vector3(-1.6f, 0f, -8.5f), new Vector3(1.6f, 3.4f, 8.5f), Vector2.one * 4);
+            body.Box(new Vector3(-1.4f, 3.4f, -7.5f), new Vector3(1.4f, 3.8f, 7.5f), Vector2.one * 4);
+            glass.Box(new Vector3(-1.62f, 1.5f, -7.6f), new Vector3(1.62f, 2.9f, 7.6f), Vector2.one * 4);
+            led.Box(new Vector3(-1.63f, 0.4f, -8.4f), new Vector3(1.63f, 0.55f, 8.4f), Vector2.one);
+            var mesh = Combine("MaglevCar", body, glass, led);
+            var ledMat = Glow(new Color(0.25f, 0.7f, 1f) * 4f);
+            for (int k = 0; k < 4; k++)
+            {
+                var go = new GameObject("MaglevCar", typeof(MeshFilter), typeof(MeshRenderer));
+                go.transform.SetParent(transform, false);
+                go.GetComponent<MeshFilter>().sharedMesh = mesh;
+                go.GetComponent<MeshRenderer>().sharedMaterials = new[] { _white, _glass, ledMat };
+                _train.Add(go.transform);
+            }
+            for (int k = 0; k < CityLayout.Monorail.Length; k++)
+                _loopLen += Vector2.Distance(CityLayout.Monorail[k], CityLayout.Monorail[(k + 1) % CityLayout.Monorail.Length]);
+        }
+
+        (Vector3 pos, Vector3 dir) LoopPoint(float s)
+        {
+            var pts = CityLayout.Monorail;
+            s = Mathf.Repeat(s, _loopLen);
+            for (int k = 0; k < pts.Length; k++)
+            {
+                Vector2 a = pts[k], b = pts[(k + 1) % pts.Length];
+                float l = Vector2.Distance(a, b);
+                if (s <= l)
+                {
+                    Vector2 p = Vector2.Lerp(a, b, s / l), d = (b - a) / l;
+                    return (new Vector3(p.x, CityLayout.MonorailY + 1.25f, p.y), new Vector3(d.x, 0, d.y));
+                }
+                s -= l;
+            }
+            return (Vector3.zero, Vector3.forward);
+        }
+
+        void TickTrain(float dt)
+        {
+            if (_train.Count == 0) return;
+            _trainS += dt * 24f;
+            for (int k = 0; k < _train.Count; k++)
+            {
+                var (p, d) = LoopPoint(_trainS - k * 17.6f);
+                var (p2, _) = LoopPoint(_trainS - k * 17.6f - 8f);
+                Vector3 fwd = (p - p2).sqrMagnitude > 0.01f ? (p - p2).normalized : d;
+                _train[k].SetPositionAndRotation((p + p2) * 0.5f, Quaternion.LookRotation(fwd));
+            }
+        }
+
+        // ------------------------------------------------------------------ drones
+        struct Drone { public Vector3 a, b; public float t, speed, bob; }
+        Drone[] _drones;
+        Mesh _droneMesh;
+        Material _droneMat, _droneLight;
+        readonly List<Matrix4x4> _droneM = new(), _droneL = new();
+
+        void SpawnDrones()
+        {
+            var b = new MeshBuilder();
+            b.Box(new Vector3(-0.6f, -0.2f, -0.6f), new Vector3(0.6f, 0.2f, 0.6f), Vector2.one);
+            foreach (var (x, z) in new[] { (1f, 1f), (-1f, 1f), (1f, -1f), (-1f, -1f) })
+            {
+                b.Box(new Vector3(x * 0.6f - 0.06f, -0.05f, z * 0.6f - 0.06f), new Vector3(x * 1.3f + 0.06f, 0.05f, z * 1.3f + 0.06f), Vector2.one);
+                b.Cylinder(new Vector3(x * 1.3f, 0.08f, z * 1.3f), new Vector3(x * 1.3f, 0.12f, z * 1.3f), 0.55f, 10);
+            }
+            _droneMesh = b.ToMesh("Drone");
+            _droneMat = Lit(new Color(0.15f, 0.16f, 0.18f), 0.6f, 0.7f);
+            _droneLight = Lit(new Color(1f, 0.2f, 0.15f), 0.5f, 0f);
+            _droneLight.EnableKeyword("_EMISSION");
+            _droneLight.SetColor("_EmissionColor", new Color(1f, 0.15f, 0.1f) * 8f);
+            _droneMat.enableInstancing = true;
+            _droneLight.enableInstancing = true;
+            _drones = new Drone[60];
+            for (int i = 0; i < _drones.Length; i++) NewDrone(ref _drones[i], true);
+        }
+
+        void NewDrone(ref Drone d, bool anywhere)
+        {
+            // drones shuttle between Downtown rooftops and the Hangar District
+            Vector3 P() => UnityEngine.Random.value < 0.7f
+                ? new Vector3(UnityEngine.Random.Range(900f, 2100f), UnityEngine.Random.Range(50f, 150f), UnityEngine.Random.Range(-350f, 1000f))
+                : new Vector3(UnityEngine.Random.Range(-1600f, -650f), UnityEngine.Random.Range(40f, 90f), UnityEngine.Random.Range(-1400f, -350f));
+            d.a = P(); d.b = P();
+            if ((d.b - d.a).magnitude > 1200f) d.b = d.a + (d.b - d.a).normalized * 1200f;
+            d.t = anywhere ? UnityEngine.Random.value : 0f;
+            d.speed = UnityEngine.Random.Range(14f, 26f) / Mathf.Max(50f, (d.b - d.a).magnitude);
+            d.bob = UnityEngine.Random.value * 10f;
+        }
+
+        void TickDrones(float dt)
+        {
+            if (_drones == null) return;
+            _droneM.Clear(); _droneL.Clear();
+            Vector3 f = Focus;
+            for (int i = 0; i < _drones.Length; i++)
+            {
+                ref Drone d = ref _drones[i];
+                d.t += d.speed * dt;
+                if (d.t >= 1f) { var start = d.b; NewDrone(ref d, false); d.a = start; }
+                Vector3 p = Vector3.Lerp(d.a, d.b, d.t) + Vector3.up * Mathf.Sin(Time.time * 1.3f + d.bob) * 0.6f;
+                if ((p - f).sqrMagnitude > 1500f * 1500f) continue;
+                var rot = Quaternion.LookRotation((d.b - d.a).normalized) * Quaternion.Euler(8f, 0, 0);
+                _droneM.Add(Matrix4x4.TRS(p, rot, Vector3.one * 1.4f));
+                if ((Time.time * 1.7f + d.bob) % 1f < 0.25f) _droneL.Add(Matrix4x4.TRS(p - Vector3.up * 0.4f, rot, Vector3.one * 0.5f));
+            }
+            if (_droneM.Count > 0) Graphics.RenderMeshInstanced(new RenderParams(_droneMat) { shadowCastingMode = ShadowCastingMode.On }, _droneMesh, 0, _droneM);
+            if (_droneL.Count > 0) Graphics.RenderMeshInstanced(new RenderParams(_droneLight), _droneMesh, 0, _droneL);
+        }
+
         // ------------------------------------------------------------------ parked mechs
         void SpawnParkedMechs()
         {
@@ -587,6 +706,8 @@ namespace AU
             if (trafficEnabled) TickTraffic(dt);
             TickPeds(dt);
             TickBoats(dt);
+            TickTrain(dt);
+            TickDrones(dt);
         }
     }
 }

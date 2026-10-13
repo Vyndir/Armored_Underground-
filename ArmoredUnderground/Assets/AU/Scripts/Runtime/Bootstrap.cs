@@ -42,6 +42,12 @@ namespace AU
             (prefix + "downtown", new Vector3(950, 90, -520), new Vector3(1520, 110, 520)),
             (prefix + "ground_arena", new Vector3(-1300, 120, 900), new Vector3(-1510, 40, 1250)),
             (prefix + "flight", new Vector3(1300, 60, 1350), new Vector3(2100, 20, 1800)),
+            (prefix + "ga_floor", new Vector3(-1510, 82, 1162), new Vector3(-1510, 43, 1262)),
+            (prefix + "ga_low", new Vector3(-1572, 51, 1205), new Vector3(-1480, 52, 1282)),
+            (prefix + "ch_floor", new Vector3(1420, 62, -1388), new Vector3(1505, 2, -1290)),
+            (prefix + "ch_low", new Vector3(1528, 9, -1368), new Vector3(1490, 10, -1280)),
+            (prefix + "downtown_tech", new Vector3(1260, 70, 60), new Vector3(1620, 90, 620)),
+            (prefix + "monorail", new Vector3(1462, 30, 160), new Vector3(1452, 27, 520)),
         };
 
         IEnumerator Start()

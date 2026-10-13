@@ -683,6 +683,21 @@ namespace AU
             yield return new WaitForSeconds(1f);
             yield return CaptureTour.Shot("12_duel_result", 1);
             Destroy(pilot);
+            while (_duel != null) yield return null;
+            yield return new WaitForSeconds(0.5f);
+
+            // the Grand Final floor, a short look
+            save.rep = Mathf.Max(save.rep, 10);
+            StartDuel(CityLayout.Duels[1]);
+            var pilot2 = player.gameObject.AddComponent<DuelAI>();
+            var duel2 = _duel;
+            pilot2.Init(player, duel2.rival, 1.25f, () => duel2 != null && duel2.state == "fight");
+            yield return new WaitForSeconds(9f);
+            yield return CaptureTour.Shot("13_final_0", 1);
+            yield return new WaitForSeconds(9f);
+            yield return CaptureTour.Shot("13_final_1", 1);
+            Debug.Log($"[AutoTest] final me={_duel?.PlayerPct:0.00} rival={_duel?.RivalPct:0.00}");
+            Destroy(pilot2);
             Application.Quit();
         }
     }

@@ -42,6 +42,7 @@ namespace AU.EditorTools
             public Material[] facades; public int[] kinds;
             public System.Func<float, float, float, float> height; // (x, z, rand01) -> meters
             public float store, signs, awnings, pitched, setback, acs = 1f, lotMin = 16, lotMax = 34, gap;
+            public bool futuristic;
             public Material trim;
         }
 
@@ -61,6 +62,8 @@ namespace AU.EditorTools
             BuildElevated();
             EditorUtility.DisplayProgressBar("AU", "Districts", 0.35f);
             BuildDistricts();
+            Skybridges();
+            MonorailTrack();
             EditorUtility.DisplayProgressBar("AU", "Landmarks", 0.65f);
             CentralBridge();
             Waterfront();
@@ -811,7 +814,7 @@ namespace AU.EditorTools
                 if (r > 0.93f && t < 0.45f) h *= 1.45f;
                 return h;
             };
-            downtown.store = 0.7f; downtown.signs = 0.04f; downtown.awnings = 0.2f; downtown.setback = 0.7f; downtown.lotMin = 26; downtown.lotMax = 52; downtown.acs = 0.3f;
+            downtown.futuristic = true; downtown.store = 0.7f; downtown.signs = 0.04f; downtown.awnings = 0.2f; downtown.setback = 0.7f; downtown.lotMin = 26; downtown.lotMax = 52; downtown.acs = 0.3f;
             var island = Style("FacadeDayWhite", "FacadeDayApart", "FacadeDayWhite", "FacadeDayStone");
             island.height = (x, z, r) => Mathf.Lerp(7.6f, 15f, r);
             island.store = 0.15f; island.signs = 0.02f; island.awnings = 0.3f; island.pitched = 0.85f; island.lotMin = 11; island.lotMax = 17; island.gap = 0.3f; island.acs = 0.2f;
@@ -902,6 +905,13 @@ namespace AU.EditorTools
             B(facade).uvShift = new Vector2(rnd.Next(0, 4) * 0.25f, rnd.Next(0, 4) * 0.25f);
             var trim = st.trim ? st.trim : (R() < 0.5f ? concreteA : concreteB);
             bool pitched = h < 32 && R() < st.pitched;
+            if (st.futuristic && h > 70) talls.Add((f, h + baseY));
+            if (st.futuristic && h > 85 && R() < 0.6f)
+            {
+                FuturisticTower(f, street, h, facade, trim, parent);
+                shift = Vector3.zero;
+                return;
+            }
 
             // foundation reaching into the slope
             B(trim).Box(new Vector3(f.xMin, -5f, f.yMin), new Vector3(f.xMax, 0f, f.yMax), Tile(8, 4), 63 & ~4 & ~8);
@@ -1536,6 +1546,7 @@ namespace AU.EditorTools
         {
             int segs = 96;
             float gapHalf = 7.5f;
+            arenaCarves.Add((c, fieldX + 5, fieldZ + 5));
             var standsCol = new MeshBuilder();
             float wallH = 4.5f;
             float ix = fieldX + 3, iz = fieldZ + 3;
@@ -1546,9 +1557,7 @@ namespace AU.EditorTools
                 bool gap = InGap(am, gapDeg, gapHalf);
                 Vector3 outward = new(Mathf.Cos(am) / outerX, 0, Mathf.Sin(am) / outerZ);
                 outward = outward.normalized;
-                // field
-                TriAuto(floorMat, new Vector3(c.x, y + 0.08f, c.y), EP(c, fieldX, fieldZ, a0, y + 0.08f), EP(c, fieldX, fieldZ, a1, y + 0.08f), Vector3.up, 8);
-                QuadAuto(floorMat, EP(c, fieldX, fieldZ, a0, y + 0.08f), EP(c, fieldX, fieldZ, a1, y + 0.08f), EP(c, ix, iz, a1, y + 0.08f), EP(c, ix, iz, a0, y + 0.08f), Vector3.up, 8, 8);
+                // (the field itself is built by ArenaFloor with its trenches and cover)
                 if (gap)
                 {
                     // tunnel floor out to the plaza
@@ -1613,6 +1622,7 @@ namespace AU.EditorTools
             var c = new Vector2(at.x, at.z);
             float y = H(c.x, c.y) + 0.05f;
             Stadium(c, y, 92, 70, 160, 132, 30, 38, -90, archFacade, fieldSand, g);
+            GroundArenaLayout(c, y, g);
             // flags around the rim
             for (int k = 0; k < 28; k++)
             {
@@ -1664,6 +1674,7 @@ namespace AU.EditorTools
             var c = new Vector2(at.x, at.z);
             float y = H(c.x, c.y) + 0.05f;
             Stadium(c, y, 112, 92, 178, 152, 36, 44, 180, stone, fieldFloor, g);
+            ChampionshipLayout(c, y, g);
             // arena floor markings
             for (int k = 0; k < 64; k++)
             {
@@ -1903,6 +1914,13 @@ namespace AU.EditorTools
             for (int j = 0; j < n; j++)
                 for (int i = 0; i < n; i++)
                     h01[j, i] = Mathf.Clamp01((hgt[j, i] - MinY) / (MaxY - MinY));
+            foreach (var (ac, rx, rz) in arenaCarves)
+                for (int j = 0; j < n; j++)
+                    for (int i = 0; i < n; i++)
+                    {
+                        float dx = (WX(i) - ac.x) / rx, dz = (WX(j) - ac.y) / rz;
+                        if (dx * dx + dz * dz < 1f) h01[j, i] = Mathf.Clamp01(h01[j, i] - 9f / (MaxY - MinY));
+                    }
             td.SetHeights(0, 0, h01);
 
             // layers: grass, rock, sand, urban paving, dirt

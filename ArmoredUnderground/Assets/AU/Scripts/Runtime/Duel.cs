@@ -97,6 +97,7 @@ namespace AU
         float _skill, _strafe = 1f, _strafeT, _qbT, _burst, _pause, _jumpT;
         Func<bool> _live;
         Vector3 _aimErr;
+        float _stuck, _detour;
 
         public void Init(MechController m, MechController target, float skill, Func<bool> live)
         {
@@ -152,6 +153,16 @@ namespace AU
             Vector3 to2 = _t.Center - _m.Center;
             c.aimPitch = Mathf.Atan2(to2.y, new Vector2(to2.x, to2.z).magnitude) * Mathf.Rad2Deg;
             if (!c.fire) c.aimPoint = _t.Center;
+            // unstick: if pushing but not moving (wall, crate, trench lip), hop and side-step around it
+            if (c.move.sqrMagnitude > 0.1f && _m.Speed < 3f) _stuck += dt; else _stuck = Mathf.Max(0, _stuck - dt);
+            if (_stuck > 0.8f) { _detour = 1.2f; _stuck = 0; _strafe = -_strafe; }
+            if (_detour > 0)
+            {
+                _detour -= dt;
+                c.jumpPressed = _detour > 1.1f; c.jumpHeld = true; c.boost = true;
+                c.move = (Vector3.Cross(Vector3.up, dir) * _strafe + dir * 0.4f).normalized;
+                if (_detour > 1.1f && _m.en > _m.stats.qbCost) c.quickBoost = true;
+            }
             _m.cmd = c;
         }
     }

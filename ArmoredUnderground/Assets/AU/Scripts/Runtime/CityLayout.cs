@@ -451,6 +451,10 @@ namespace AU
             },
         };
 
+        /// <summary>Elevated maglev loop through Downtown (corners, clockwise) and its rail height.</summary>
+        public static readonly Vector2[] Monorail = { new(1450, -400), new(1450, 950), new(1900, 950), new(1900, -400) };
+        public const float MonorailY = 24f;
+
         public static readonly Vector2 RigShop = new(-835, -900);       // in front of hangar 03
         public static readonly Vector2 PlayerSpawn = new(-880, -905);
         public static Vector3 GarageDoor => new(RigShop.x, 0, RigShop.y + 14);
