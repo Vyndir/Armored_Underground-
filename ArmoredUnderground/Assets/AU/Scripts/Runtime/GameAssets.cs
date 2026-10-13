@@ -11,6 +11,7 @@ namespace AU
         public GameObject mechPrefab;
         public Texture2D softDot;
         public Texture2D worldMap;
+        public Vector4[] mechSpots;   // parked mechs in open hangar bays: xyz + yaw
 
         static GameAssets _i;
         public static GameAssets I => _i ? _i : (_i = Resources.Load<GameAssets>("GameAssets"));

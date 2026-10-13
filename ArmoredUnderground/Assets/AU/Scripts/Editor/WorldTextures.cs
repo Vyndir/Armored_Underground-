@@ -77,6 +77,34 @@ namespace AU.EditorTools
             return (Save(n + "_Albedo", px, S, S), Save(n + "_Normal", HeightToNormal(hgt, S, S, kind == GroundKind.Rock ? 4f : 2f), S, S, normal: true));
         }
 
+        /// <summary>A tuft of grass blades on a transparent background, for terrain detail billboards.</summary>
+        public static Texture2D GrassTuft()
+        {
+            const int S = 128;
+            var px = new Color[S * S];
+            var rnd = new System.Random(5);
+            for (int k = 0; k < 46; k++)
+            {
+                float x0 = 10 + (float)rnd.NextDouble() * (S - 20), lean = ((float)rnd.NextDouble() - 0.5f) * 40f;
+                float h = 60 + (float)rnd.NextDouble() * 64, w = 2.5f + (float)rnd.NextDouble() * 2.5f;
+                Color c = Color.Lerp(new Color(0.25f, 0.38f, 0.12f), new Color(0.5f, 0.55f, 0.22f), (float)rnd.NextDouble());
+                for (int y = 0; y < Mathf.Min(S, (int)h); y++)
+                {
+                    float t = y / h;
+                    float cx = x0 + lean * t * t, hw = w * (1 - t);
+                    for (int x = (int)(cx - hw - 1); x <= (int)(cx + hw + 1); x++)
+                    {
+                        if (x < 0 || x >= S) continue;
+                        float a = Mathf.Clamp01(hw + 0.5f - Mathf.Abs(x - cx));
+                        if (a <= 0) continue;
+                        var o = px[y * S + x];
+                        px[y * S + x] = new Color(c.r * (0.6f + t * 0.5f), c.g * (0.6f + t * 0.5f), c.b, Mathf.Max(o.a, a));
+                    }
+                }
+            }
+            return Save("GrassTuft", px, S, S, wrap: TextureWrapMode.Clamp);
+        }
+
         /// <summary>Tileable wind-wave height field as a normal map.</summary>
         public static Texture2D WaterNormal()
         {

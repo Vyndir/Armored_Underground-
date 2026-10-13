@@ -26,6 +26,7 @@ namespace AU.EditorTools
         readonly List<Vector3> treeWorld = new();
         readonly List<int> treeProto = new();
         GameObject treeBroad, treeConifer;
+        readonly List<Vector4> mechSpots = new();   // parked mechs: position + yaw
 
         Material water, backdrop, stone, stoneDark, domeMat, roofTile, hangarWall, hangarRoof, warehouseWall, girder, cableMat, crowdMat, archFacade,
             fieldSand, fieldFloor, bannerMat, pylonMat, runwayLight, beacon, ledBlue, quayMat, craneMat, hullDark, hullRed, shipWhite, lighthouseRed,
@@ -171,7 +172,7 @@ namespace AU.EditorTools
             {
                 var d = defs[i];
                 var (alb, emi) = TextureGen.Facade(d.name, 700 + i, d.floors, d.bays, d.glass, d.frame, d.lit, d.cool, d.curtain, d.tint);
-                dayFacades[i] = Mats.LitMat(d.name, Color.white, d.curtain ? 0.88f : 0.4f, d.curtain ? 0.55f : 0.05f, alb, null, emi, Color.white * 2.0f);
+                dayFacades[i] = Mats.LitMat(d.name, Color.white, d.curtain ? 0.88f : 0.4f, d.curtain ? 0.55f : 0.05f, alb, TextureGen.LastNormal, emi, Color.white * 2.0f, d.curtain ? 0.5f : 1.2f);
                 dayKinds[i] = d.kind;
             }
         }
@@ -430,6 +431,17 @@ namespace AU.EditorTools
                         if (banners && k % 2 == 0) PoleBanner(bp, V3(d, 0), -right * side);
                     }
                 }
+                if (e.district != District.Airfield)
+                    for (float s = wa + 12f; s < len - wb - 8; s += R(14f, 26f))
+                    {
+                        Vector3 bp = V3(a + d * s, EdgeY(e, s / len) + 0.34f) + right * side * (hw + 0.9f);
+                        Furniture(bp, V3(d, 0), -right * side, e);
+                    }
+                if (e.kind >= RoadKind.Avenue && e.district != District.Airfield && len > 120)
+                {
+                    float s = len * (side > 0 ? 0.4f : 0.65f);
+                    BusStop(V3(a + d * s, EdgeY(e, s / len) + 0.34f) + right * side * (hw + Sidewalk - 1.2f), V3(d, 0), -right * side);
+                }
                 if (streetTrees)
                     for (float s = wa + 9f; s < len - wb - 6; s += 18f)
                         if (R() < 0.7f) AddTree(V3(a + d * s, 0) + right * side * (hw + Sidewalk * 0.62f), 0, R(0.8f, 1.15f));
@@ -442,6 +454,148 @@ namespace AU.EditorTools
                         s += R(7, 16);
                     }
                 }
+            }
+        }
+
+        Material _hydrant, _bench, _bin, _shelterGlass, _signGreen, _grate, _railGlass, _scaffold;
+        Material Hydrant => _hydrant ? _hydrant : (_hydrant = Mats.LitMat("Hydrant", new Color(0.7f, 0.12f, 0.08f), 0.5f, 0.3f));
+        Material Bench => _bench ? _bench : (_bench = Mats.LitMat("BenchWood", new Color(0.38f, 0.24f, 0.14f), 0.3f, 0f));
+        Material Bin => _bin ? _bin : (_bin = Mats.LitMat("BinGreen", new Color(0.1f, 0.22f, 0.16f), 0.4f, 0.4f));
+        Material ShelterGlass => _shelterGlass ? _shelterGlass : (_shelterGlass = Mats.LitMat("ShelterGlass", new Color(0.3f, 0.38f, 0.42f), 0.92f, 0.2f));
+        Material SignGreen => _signGreen ? _signGreen : (_signGreen = Mats.LitMat("StreetSign", new Color(0.06f, 0.3f, 0.16f), 0.5f, 0.2f));
+        Material Grate => _grate ? _grate : (_grate = Mats.LitMat("FireEscape", new Color(0.12f, 0.12f, 0.13f), 0.35f, 0.7f));
+        Material RailGlass => _railGlass ? _railGlass : (_railGlass = Mats.LitMat("RailGlass", new Color(0.35f, 0.45f, 0.5f), 0.9f, 0.3f));
+        Material Scaffold => _scaffold ? _scaffold : (_scaffold = Mats.LitMat("ScaffoldYellow", new Color(0.85f, 0.62f, 0.08f), 0.4f, 0.4f));
+
+        /// <summary>One random curbside item: bench, bin, hydrant, newsbox, bollards, planter or a street sign.</summary>
+        void Furniture(Vector3 p, Vector3 along, Vector3 toRoad, Edge e)
+        {
+            Vector3 side = Vector3.Cross(Vector3.up, toRoad);
+            float r = R();
+            if (r < 0.2f)
+            {
+                Vector3 c = p - toRoad * 2.4f;
+                B(Bench).BoxCentered(c + Vector3.up * 0.45f, Abs(side) * 1.9f + Abs(toRoad) * 0.5f + Vector3.up * 0.08f, Tile(1, 1));
+                B(Bench).BoxCentered(c + Vector3.up * 0.75f - toRoad * 0.25f, Abs(side) * 1.9f + Abs(toRoad) * 0.07f + Vector3.up * 0.5f, Tile(1, 1));
+                foreach (int k in new[] { -1, 1 }) B(darkMetal).BoxCentered(c + side * 0.85f * k + Vector3.up * 0.22f, Abs(side) * 0.07f + Abs(toRoad) * 0.5f + Vector3.up * 0.45f, Tile(1, 1));
+            }
+            else if (r < 0.35f) B(Bin).Cylinder(p, p + Vector3.up * 1.0f, 0.32f, 8, null, true, 0.3f);
+            else if (r < 0.45f)
+            {
+                B(Hydrant).Cylinder(p, p + Vector3.up * 0.75f, 0.17f, 8);
+                B(Hydrant).Cylinder(p + Vector3.up * 0.75f, p + Vector3.up * 0.9f, 0.13f, 8, null, true, 0.05f);
+                B(Hydrant).Cylinder(p + Vector3.up * 0.5f - side * 0.2f, p + Vector3.up * 0.5f + side * 0.2f, 0.07f, 6);
+            }
+            else if (r < 0.55f) B(R() < 0.5f ? navyMat : Hydrant).BoxCentered(p + Vector3.up * 0.55f, Abs(side) * 0.5f + Abs(toRoad) * 0.45f + Vector3.up * 1.1f, Tile(1, 1));
+            else if (r < 0.7f)
+            {
+                for (int k = -1; k <= 1; k++) B(darkMetal).Cylinder(p + side * k * 1.4f, p + side * k * 1.4f + Vector3.up * 0.9f, 0.12f, 6, null, true, 0.1f);
+            }
+            else if (r < 0.82f && e.district != District.Hangar)
+            {
+                Vector3 c = p - toRoad * 2f;
+                B(concreteA).BoxCentered(c + Vector3.up * 0.35f, Abs(side) * 2.2f + Abs(toRoad) * 1.0f + Vector3.up * 0.7f, Tile(2, 1));
+                B(leaves).BoxCentered(c + Vector3.up * 0.85f, Abs(side) * 2.0f + Abs(toRoad) * 0.8f + Vector3.up * 0.4f, Tile(1, 1));
+            }
+            else if (r < 0.9f)
+            {
+                B(darkMetal).Cylinder(p, p + Vector3.up * 3.2f, 0.05f, 6);
+                B(SignGreen).BoxCentered(p + Vector3.up * 3.0f, Abs(along) * 1.4f + Abs(toRoad) * 0.04f + Vector3.up * 0.28f, Tile(1, 1));
+                B(SignGreen).BoxCentered(p + Vector3.up * 2.65f, Abs(toRoad) * 1.4f + Abs(along) * 0.04f + Vector3.up * 0.28f, Tile(1, 1));
+            }
+        }
+
+        void BusStop(Vector3 p, Vector3 along, Vector3 toRoad)
+        {
+            Vector3 back = -toRoad;
+            for (int k = -1; k <= 1; k += 2)
+            {
+                B(darkMetal).Cylinder(p + along * 2.8f * k + back * 0.7f, p + along * 2.8f * k + back * 0.7f + Vector3.up * 2.7f, 0.06f, 6);
+                B(darkMetal).Cylinder(p + along * 2.8f * k - back * 0.4f, p + along * 2.8f * k - back * 0.4f + Vector3.up * 2.7f, 0.06f, 6);
+            }
+            B(darkMetal).BoxCentered(p + Vector3.up * 2.8f + back * 0.15f, Abs(along) * 6f + Abs(back) * 1.8f + Vector3.up * 0.15f, Tile(1, 1));
+            B(ShelterGlass).BoxCentered(p + Vector3.up * 1.4f + back * 0.75f, Abs(along) * 5.6f + Abs(back) * 0.05f + Vector3.up * 2.4f, Tile(2, 2));
+            B(bannerMat).BoxCentered(p + Vector3.up * 1.35f + along * 2.7f, Abs(along) * 0.06f + Abs(back) * 1.1f + Vector3.up * 2.0f, Tile(1, 1));
+            B(Bench).BoxCentered(p + Vector3.up * 0.45f + back * 0.45f, Abs(along) * 3.5f + Abs(back) * 0.45f + Vector3.up * 0.08f, Tile(1, 1));
+            B(lampHead).BoxCentered(p + Vector3.up * 2.68f + back * 0.15f, Abs(along) * 4f + Abs(back) * 0.2f + Vector3.up * 0.05f, Tile(1, 1));
+        }
+
+        /// <summary>Architectural detail: base course, cornices, dentils, tower fins, balconies, fire escapes, roof housings.</summary>
+        void Ornament(Rect f, bool[] street, float podium, float bodyTop, float h, int kind, Material trim, bool pitched, Rect roofRect, float roofY)
+        {
+            bool curtain = kind == 2;
+            if (podium <= 0 && !curtain)
+                B(trim).Box(new Vector3(f.xMin - 0.25f, 0, f.yMin - 0.25f), new Vector3(f.xMax + 0.25f, 1.1f, f.yMax + 0.25f), Tile(8, 1), 63 & ~4 & ~8);
+            if (!pitched && !curtain)
+            {
+                B(trim).Box(new Vector3(f.xMin - 0.55f, bodyTop - 1.3f, f.yMin - 0.55f), new Vector3(f.xMax + 0.55f, bodyTop - 0.75f, f.yMax + 0.55f), Tile(8, 1), 63 & ~4);
+                B(trim).Box(new Vector3(f.xMin - 0.9f, bodyTop - 0.75f, f.yMin - 0.9f), new Vector3(f.xMax + 0.9f, bodyTop - 0.35f, f.yMax + 0.9f), Tile(8, 1));
+                if (kind == 4 || kind == 3)
+                    for (int s = 0; s < 4; s++)
+                    {
+                        if (!street[s]) continue;
+                        FaceInfo(f, s, out Vector3 a, out Vector3 dir, out Vector3 outN, out float len);
+                        for (float d = 0.6f; d < len - 0.5f; d += 1.2f)
+                            B(trim).BoxCentered(a + dir * d + outN * 0.35f + Vector3.up * (bodyTop - 1.55f), Abs(dir) * 0.5f + Abs(outN) * 0.5f + Vector3.up * 0.45f, Tile(1, 1));
+                    }
+            }
+            if (pitched)
+                B(trim).Box(new Vector3(f.xMin - 0.35f, bodyTop - 0.6f, f.yMin - 0.35f), new Vector3(f.xMax + 0.35f, bodyTop, f.yMax + 0.35f), Tile(8, 1), 63 & ~4);
+            if (curtain && h > 30)
+            {
+                for (int s = 0; s < 4; s++)
+                {
+                    FaceInfo(f, s, out Vector3 a, out Vector3 dir, out Vector3 outN, out float len);
+                    for (float d = 2f; d < len - 1f; d += 4f)
+                        B(metal).BoxCentered(a + dir * d + outN * 0.3f + Vector3.up * (podium + bodyTop) * 0.5f, Abs(dir) * 0.22f + Abs(outN) * 0.6f + Vector3.up * (bodyTop - podium), Tile(1, 8));
+                }
+                B(ledBlue).Box(new Vector3(f.xMin - 0.05f, bodyTop - 0.5f, f.yMin - 0.05f), new Vector3(f.xMax + 0.05f, bodyTop - 0.2f, f.yMax + 0.05f), Tile(4, 1), 63 & ~4 & ~8);
+            }
+            if (kind == 1 && h > 10 && R() < 0.6f)
+                for (int s = 0; s < 4; s++)
+                {
+                    if (!street[s]) continue;
+                    FaceInfo(f, s, out Vector3 a, out Vector3 dir, out Vector3 outN, out float len);
+                    for (float y = Mathf.Max(podium, 3.6f) + 3.2f; y < bodyTop - 2.5f; y += 3.6f)
+                        for (float d = 2.5f; d < len - 2.5f; d += 6f)
+                        {
+                            Vector3 c = a + dir * d + outN * 0.7f + Vector3.up * y;
+                            B(trim).BoxCentered(c, Abs(dir) * 3f + Abs(outN) * 1.4f + Vector3.up * 0.18f, Tile(2, 1));
+                            B(RailGlass).BoxCentered(c + outN * 0.66f + Vector3.up * 0.55f, Abs(dir) * 3f + Abs(outN) * 0.06f + Vector3.up * 0.95f, Tile(2, 1));
+                            B(darkMetal).BoxCentered(c + outN * 0.66f + Vector3.up * 1.05f, Abs(dir) * 3.05f + Abs(outN) * 0.1f + Vector3.up * 0.08f, Tile(2, 1));
+                        }
+                }
+            if (kind == 3 && h > 14 && R() < 0.5f)
+            {
+                int s = -1;
+                for (int k = 0; k < 4; k++) if (street[k]) { s = k; break; }
+                if (s >= 0)
+                {
+                    FaceInfo(f, s, out Vector3 a, out Vector3 dir, out Vector3 outN, out float len);
+                    if (len > 10)
+                    {
+                        float d0 = R(2.5f, len - 7.5f);
+                        int flight = 0;
+                        for (float y = Mathf.Max(podium, 3.6f) + 3.4f; y < bodyTop - 1.5f; y += 3.6f, flight++)
+                        {
+                            Vector3 c = a + dir * (d0 + 2.5f) + outN * 0.75f + Vector3.up * y;
+                            B(Grate).BoxCentered(c, Abs(dir) * 5f + Abs(outN) * 1.4f + Vector3.up * 0.1f, Tile(1, 1));
+                            B(Grate).BoxCentered(c + outN * 0.68f + Vector3.up * 0.5f, Abs(dir) * 5f + Abs(outN) * 0.05f + Vector3.up * 0.06f, Tile(1, 1));
+                            B(Grate).BoxCentered(c + outN * 0.68f + Vector3.up * 1.0f, Abs(dir) * 5f + Abs(outN) * 0.05f + Vector3.up * 0.06f, Tile(1, 1));
+                            if (y + 3.6f < bodyTop - 1.5f)
+                            {
+                                float sd = flight % 2 == 0 ? 1 : -1;
+                                B(Grate).Cylinder(c - dir * sd * 1.6f + outN * 0.2f, c + dir * sd * 1.6f + outN * 0.2f + Vector3.up * 3.6f, 0.35f, 4);
+                            }
+                        }
+                    }
+                }
+            }
+            if (!pitched && h > 12 && roofRect.width > 8 && roofRect.height > 8)
+            {
+                Vector3 c = new(R(roofRect.xMin + 3, roofRect.xMax - 3), 0, R(roofRect.yMin + 3, roofRect.yMax - 3));
+                B(trim).Box(new Vector3(c.x - 1.8f, roofY, c.z - 2.4f), new Vector3(c.x + 1.8f, roofY + 3.4f, c.z + 2.4f), Tile(4, 4));
+                B(darkMetal).Box(new Vector3(c.x - 2f, roofY + 3.4f, c.z - 2.6f), new Vector3(c.x + 2f, roofY + 3.6f, c.z + 2.6f), Tile(4, 4));
             }
         }
 
@@ -480,15 +634,32 @@ namespace AU.EditorTools
             if (ni.w < 0) Pad(-hx - S, -hx, -hz, hz);
             if (ni.n < 0) Pad(-hx, hx, hz, hz + S);
             if (ni.s < 0) Pad(-hx, hx, -hz - S, -hz);
-            // a traffic signal on one corner of busy crossings
-            if (hx + hz > 22)
+            // signals on all four corners of busy crossings, with pedestrian heads
+            if (hx + hz > 18)
             {
-                Vector3 pole = c + new Vector3(hx + 1.5f, 0.34f, -hz - 1.5f);
-                B(darkMetal).Cylinder(pole, pole + Vector3.up * 7.5f, 0.18f, 8);
-                Vector3 armEnd = pole + Vector3.up * 7.2f + Vector3.left * (hx * 0.8f);
-                B(darkMetal).Cylinder(pole + Vector3.up * 7.2f, armEnd, 0.1f, 6);
-                B(darkMetal).BoxCentered(armEnd + Vector3.down * 0.9f, new Vector3(0.6f, 1.8f, 0.5f), Tile(1, 1));
-                B(R() < 0.5f ? neons[4] : neons[5]).BoxCentered(armEnd + Vector3.down * 1.2f + Vector3.back * 0.27f, new Vector3(0.35f, 0.35f, 0.05f), Tile(1, 1));
+                bool nsGreen = R() < 0.5f;
+                foreach (var (corner, armDir, facing, ns) in new[]
+                {
+                    (new Vector3(hx + 1.5f, 0.34f, -hz - 1.5f), Vector3.left, Vector3.back, true),
+                    (new Vector3(-hx - 1.5f, 0.34f, hz + 1.5f), Vector3.right, Vector3.forward, true),
+                    (new Vector3(-hx - 1.5f, 0.34f, -hz - 1.5f), Vector3.forward, Vector3.left, false),
+                    (new Vector3(hx + 1.5f, 0.34f, hz + 1.5f), Vector3.back, Vector3.right, false),
+                })
+                {
+                    Vector3 pole = c + corner;
+                    float reach = (ns ? hx : hz) * 0.85f;
+                    B(darkMetal).Cylinder(pole, pole + Vector3.up * 7.5f, 0.18f, 8);
+                    B(darkMetal).Cylinder(pole + Vector3.up * 7.2f, pole + Vector3.up * 7.2f + armDir * reach, 0.1f, 6);
+                    bool green = ns == nsGreen;
+                    foreach (float t in new[] { 0.55f, 1f })
+                    {
+                        Vector3 hp = pole + Vector3.up * 7.2f + armDir * reach * t;
+                        B(darkMetal).BoxCentered(hp + Vector3.down * 0.9f, Abs(armDir) * 0.6f + Abs(facing) * 0.5f + Vector3.up * 1.8f, Tile(1, 1));
+                        B(green ? neons[4] : neons[5]).BoxCentered(hp + Vector3.down * (green ? 1.45f : 0.35f) + facing * 0.27f, Abs(armDir) * 0.35f + Abs(facing) * 0.05f + Vector3.up * 0.35f, Tile(1, 1));
+                    }
+                    B(darkMetal).BoxCentered(pole + Vector3.up * 2.9f + facing * 0.25f, Abs(armDir) * 0.4f + Abs(facing) * 0.3f + Vector3.up * 0.5f, Tile(1, 1));
+                    B(green ? neons[6] : neons[2]).BoxCentered(pole + Vector3.up * 2.9f + facing * 0.41f, Abs(armDir) * 0.3f + Abs(facing) * 0.02f + Vector3.up * 0.35f, Tile(1, 1));
+                }
             }
             _ = X; _ = Z;
         }
@@ -770,6 +941,7 @@ namespace AU.EditorTools
             }
             if (!pitched) Rooftop(top, topY, topY < 80);
             FloorBands(f, Mathf.Max(podium, 6.6f), bodyTop, kind, trim);
+            Ornament(f, street, podium, bodyTop, h, kind, trim, pitched, top, topY);
             for (int s = 0; s < 4; s++)
             {
                 if (!street[s]) continue;
@@ -911,6 +1083,31 @@ namespace AU.EditorTools
                         Object.DestroyImmediate(lm);
                         AddLight(new Vector3(xc, 7, z + n.z * 8), new Color(1f, 0.65f, 0.3f), 8f, 30f);
                         AddLight(new Vector3(xc, 4, z - n.z * 6), new Color(1f, 0.75f, 0.45f), 6f, 25f);
+                    }
+                    else if (R() < 0.45f)
+                    {
+                        // open bay: a mech on its service gantry, lit from inside
+                        float rolled = doorH * 0.86f;
+                        QuadAuto(HangarDoorMat(number), new Vector3(dl, rolled, zz), new Vector3(dr, rolled, zz), new Vector3(dr, doorH, zz), new Vector3(dl, doorH, zz), n, doorW, doorH - rolled);
+                        float zi = z - n.z * 14f;
+                        QuadAuto(interiorGlow, new Vector3(dl, 0.6f, zi), new Vector3(dr, 0.6f, zi), new Vector3(dr, rolled, zi), new Vector3(dl, rolled, zi), n, doorW, rolled);
+                        // interior side walls and ceiling of the bay so the opening reads as depth
+                        QuadAuto(darkMetal, new Vector3(dl, 0.6f, z), new Vector3(dl, 0.6f, zi), new Vector3(dl, rolled, zi), new Vector3(dl, rolled, z), Vector3.right, 4, 4);
+                        QuadAuto(darkMetal, new Vector3(dr, 0.6f, z), new Vector3(dr, 0.6f, zi), new Vector3(dr, rolled, zi), new Vector3(dr, rolled, z), Vector3.left, 4, 4);
+                        QuadAuto(darkMetal, new Vector3(dl, rolled, z), new Vector3(dr, rolled, z), new Vector3(dr, rolled, zi), new Vector3(dl, rolled, zi), Vector3.down, 4, 4);
+                        QuadAuto(concreteA, new Vector3(dl, 0.65f, z), new Vector3(dr, 0.65f, z), new Vector3(dr, 0.65f, zi), new Vector3(dl, 0.65f, zi), Vector3.up, 4, 4);
+                        Vector3 spot = new(xc, 0.65f, z - n.z * 6.5f);
+                        foreach (int sx in new[] { -1, 1 })
+                        {
+                            Vector3 tw = spot + new Vector3(sx * 5.2f, 0, 0);
+                            for (int k = 0; k < 4; k++)
+                                B(Scaffold).Box(tw + new Vector3(-0.15f + (k % 2) * 2.2f * sx - (sx < 0 ? 0 : 0), 0, -1.1f + (k / 2) * 2.2f), tw + new Vector3(0.15f + (k % 2) * 2.2f * sx, 11f, -0.8f + (k / 2) * 2.2f), Tile(1, 4));
+                            foreach (float ly in new[] { 4f, 7.5f, 10.8f })
+                                B(Scaffold).Box(tw + new Vector3(Mathf.Min(0, sx * 2.4f) - 0.2f, ly, -1.3f), tw + new Vector3(Mathf.Max(0, sx * 2.4f) + 0.2f, ly + 0.2f, 1.4f), Tile(2, 1));
+                        }
+                        B(Scaffold).Box(spot + new Vector3(-5.4f, 10.8f, -1.3f), spot + new Vector3(5.4f, 11.0f, -0.9f), Tile(2, 1));
+                        AddLight(spot + Vector3.up * 9f + n * 2f, new Color(1f, 0.85f, 0.6f), 5f, 22f);
+                        mechSpots.Add(new Vector4(spot.x, spot.y + shift.y, spot.z, face == 2 ? 180f : 0f));
                     }
                     else QuadAuto(HangarDoorMat(number), new Vector3(dl, 0.6f, zz), new Vector3(dr, 0.6f, zz), new Vector3(dr, doorH, zz), new Vector3(dl, doorH, zz), n, doorW, doorH - 0.6f);
                     if (doorH < wallH) QuadAuto(hangarWall, new Vector3(dl, doorH, z), new Vector3(dr, doorH, z), new Vector3(dr, wallH, z), new Vector3(dl, wallH, z), n, 10, 10);
@@ -1599,7 +1796,7 @@ namespace AU.EditorTools
         {
             // hills and mountain foothills: clumps where it's green, not too steep, away from streets
             var rng = new System.Random(77);
-            for (int k = 0; k < 60000 && trees.Count < 26000; k++)
+            for (int k = 0; k < 110000 && trees.Count < 42000; k++)
             {
                 float x = (float)(rng.NextDouble() * 2 - 1) * (Half - 60), z = (float)(rng.NextDouble() * 2 - 1) * (Half - 60);
                 float h = H(x, z);
@@ -1611,7 +1808,7 @@ namespace AU.EditorTools
                 float slope = Slope(x, z);
                 if (slope > 0.75f) continue;
                 float clump = Mathf.PerlinNoise(x * 0.006f + 3, z * 0.006f + 7);
-                if (clump < 0.45f) continue;
+                if (clump < 0.4f) continue;
                 int proto = h > 120 || (x < -1900) || (z > 1500 && x < 0) ? 1 : (rng.NextDouble() < 0.25 ? 1 : 0);
                 AddTree(new Vector3(x, 0, z), proto, R(0.8f, 1.4f) * (proto == 1 ? 1.2f : 1f));
             }
@@ -1744,6 +1941,27 @@ namespace AU.EditorTools
                 }
             td.SetAlphamaps(0, 0, alpha);
 
+            // ground cover: grass tufts wherever the grass layer dominates
+            td.detailPrototypes = new[]
+            {
+                new DetailPrototype
+                {
+                    renderMode = DetailRenderMode.GrassBillboard, prototypeTexture = WorldTextures.GrassTuft(),
+                    minWidth = 0.6f, maxWidth = 1.2f, minHeight = 0.5f, maxHeight = 1.1f, noiseSpread = 0.3f,
+                    healthyColor = new Color(0.62f, 0.72f, 0.42f), dryColor = new Color(0.72f, 0.66f, 0.42f), useInstancing = false,
+                },
+            };
+            int dr = 2048;
+            td.SetDetailResolution(dr, 32);
+            var dens = new int[dr, dr];
+            for (int j = 0; j < dr; j++)
+                for (int i = 0; i < dr; i++)
+                {
+                    float g = alpha[Mathf.Min(ar - 1, j * ar / dr), Mathf.Min(ar - 1, i * ar / dr), 0];
+                    dens[j, i] = g > 0.55f ? Mathf.RoundToInt((g - 0.55f) * 14f) : 0;
+                }
+            td.SetDetailLayer(0, 0, 0, dens);
+
             treeBroad = TreePrefab("TreeBroadleaf", false);
             treeConifer = TreePrefab("TreeConifer", true);
             td.treePrototypes = new[] { new TreePrototype { prefab = treeBroad }, new TreePrototype { prefab = treeConifer } };
@@ -1770,6 +1988,8 @@ namespace AU.EditorTools
             terrain.treeBillboardDistance = 1400;
             terrain.treeMaximumFullLODCount = 30000;
             terrain.drawInstanced = true;
+            terrain.detailObjectDistance = 150;
+            terrain.detailObjectDensity = 1f;
             terrain.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.TwoSided;
             GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccludeeStatic);
         }
@@ -1880,7 +2100,7 @@ namespace AU.EditorTools
             }
             var tex = TextureGen.Save("WorldMap", px, S, S, mips: false, wrap: TextureWrapMode.Clamp);
             var ga = AssetDatabase.LoadAssetAtPath<GameAssets>("Assets/AU/Resources/GameAssets.asset");
-            if (ga) { ga.worldMap = tex; EditorUtility.SetDirty(ga); }
+            if (ga) { ga.worldMap = tex; ga.mechSpots = mechSpots.ToArray(); EditorUtility.SetDirty(ga); }
         }
     }
 }

@@ -201,6 +201,7 @@ namespace AU.EditorTools
             const int S = 512;
             var alb = new Color[S * S];
             var emi = new Color[S * S];
+            var hgt = new float[S * S];
             var rnd = new System.Random(seed);
             int fh = S / floors, bw = S / bays;
             for (int y = 0; y < S; y++)
@@ -209,6 +210,7 @@ namespace AU.EditorTools
                     float n = Fbm(x / (float)S, y / (float)S, 8, 3, seed);
                     alb[y * S + x] = frameColor * (0.8f + n * 0.4f);
                     emi[y * S + x] = Color.black;
+                    hgt[y * S + x] = 0.7f + n * 0.08f;
                 }
             for (int f = 0; f < floors; f++)
             {
@@ -236,8 +238,10 @@ namespace AU.EditorTools
                             if (mullion || edge)
                             {
                                 alb[y * S + x] = frameColor * 0.55f;
+                                hgt[y * S + x] = 0.45f;
                                 continue;
                             }
+                            hgt[y * S + x] = 0.1f;
                             // glass: dark reflective with a faint sky gradient
                             Color g = (glassTint ?? new Color(0.025f, 0.03f, 0.042f)) * (0.7f + gy * 0.6f);
                             alb[y * S + x] = g;
@@ -255,11 +259,15 @@ namespace AU.EditorTools
                     // sill
                     for (int x = x0 - 2; x < x1 + 2; x++)
                         for (int y = y0 - 4; y < y0 - 1; y++)
-                            if (x >= 0 && x < S && y >= 0) alb[y * S + x] = frameColor * 1.3f;
+                            if (x >= 0 && x < S && y >= 0) { alb[y * S + x] = frameColor * 1.3f; hgt[y * S + x] = 0.95f; }
                 }
             }
+            LastNormal = Save(name + "_Normal", HeightToNormal(hgt, S, S, 9f), S, S, normal: true);
             return (Save(name + "_Albedo", alb, S, S), Save(name + "_Emission", emi, S, S));
         }
+
+        /// <summary>Normal map written by the most recent Facade call (window reveals and sills).</summary>
+        public static Texture2D LastNormal;
 
         /// <summary>Street-level shopfronts: bright display windows, shutters, small signs.</summary>
         public static (Texture2D albedo, Texture2D emission) Storefront(int seed)

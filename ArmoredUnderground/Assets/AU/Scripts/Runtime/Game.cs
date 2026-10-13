@@ -38,6 +38,8 @@ namespace AU
             var es = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
             gameObject.AddComponent<Combat>();
             gameObject.AddComponent<AudioFX>();
+            var life = gameObject.AddComponent<CityLife>();
+            life.Mechs = () => _mechs;
             Combat.I.Mechs = () => _mechs.Where(m => m);
             Combat.I.Hit += OnHit;
             Combat.I.Shake += (p, s) => { if (_chase && player) _chase.AddTrauma(s * Mathf.Clamp01(1.2f - Vector3.Distance(p, player.Center) / 120f)); };
@@ -399,7 +401,7 @@ namespace AU
             foreach (var (n, hour, at, yaw) in new[]
             {
                 ("h_bridge", 16.3f, new Vector2(-380, 52), 90f), ("h_hangar_day", 16.3f, new Vector2(-910, -1060), 0f),
-                ("h_island", 16.3f, new Vector2(1150, -1020), 125f), ("h_hangar_night", 22.5f, new Vector2(-910, -1060), 0f),
+                ("h_island", 16.3f, new Vector2(1150, -1020), 125f), ("h_downtown_street", 16.3f, new Vector2(1450, 120), 0f), ("h_oldtown", 16.3f, new Vector2(-1360, 420), 0f), ("h_hangar_night", 22.5f, new Vector2(-910, -1060), 0f),
             })
             {
                 DayNight.I.SetHour(hour);

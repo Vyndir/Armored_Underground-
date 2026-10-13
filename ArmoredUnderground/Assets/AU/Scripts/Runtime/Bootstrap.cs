@@ -37,7 +37,7 @@ namespace AU
         {
             (prefix + "overview", new Vector3(-900, 520, -2300), new Vector3(300, 0, 300)),
             (prefix + "bridge_deck", new Vector3(-560, 44, 38), new Vector3(400, 70, 70)),
-            (prefix + "hangar_street", new Vector3(-850, 4.5f, -1040), new Vector3(-850, 30, 400)),
+            (prefix + "hangar_street", new Vector3(-910, 5f, -1080), new Vector3(-910, 25, 400)),
             (prefix + "championship", new Vector3(1150, 90, -980), new Vector3(1500, 10, -1300)),
             (prefix + "downtown", new Vector3(950, 90, -520), new Vector3(1520, 110, 520)),
             (prefix + "ground_arena", new Vector3(-1300, 120, 900), new Vector3(-1510, 40, 1250)),
