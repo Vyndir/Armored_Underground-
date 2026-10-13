@@ -102,6 +102,8 @@ def cr_ferro(rig):
     prism('NeckGuard', poly((-0.5, -0.12), (0.5, -0.12), (0.4, 0.16), (-0.4, 0.16)), 0.08, (0, -0.52, 7.08), tuple(Vector((0, -1, 0.45)).normalized()), 'paint', 'chest', taper=0.9, panel=0.025)
     # back
     prism('Back', chamfer(1.8, 0.95, 0.2), 0.18, (0, 0.72, 6.35), '+Y', 'frame', 'chest', taper=0.88, panel=0.05)
+    with Mirror():
+        prism('Blade.L', poly((-0.4, -0.3), (0.38, -0.26), (0.42, 0.28), (-0.3, 0.34)), 0.08, (0.72, 0.78, 6.62), tuple(Vector((0.3, 1, 0.15)).normalized()), 'paint', 'chest', taper=0.9, panel=0.03)
     greebles('BackG', (0, 0.83, 6.66), (1, 0, 0), (0, 0, 1), 1.3, 0.22, 10, 'chest', (0, 1, 0))
     with Mirror():
         vents('BackVent.L', (0.52, 0.83, 6.12), 0.4, 0.3, 5, 'chest', normal=(0, 1, 0))
@@ -146,9 +148,11 @@ def ar_hand(rig):
         piston('ElbowPiston.L', U.p(0.45, -0.24, -0.25), F.p(0.35, -0.26, -0.3), 0.055, 'forearm.L')
         # forearm: inner frame + big ridged outer armor + front guard
         loft('ForeFrame.L', [(F.p(0.05), F.d, chamfer(0.46, 0.5, 0.1), tuple(F.f)), (F.p(0.98), F.d, chamfer(0.42, 0.46, 0.1), tuple(F.f))], 'frame', 'forearm.L')
-        fore = loft('Forearm.L', [(F.p(0.1, 0.1, 0.02), F.d, ridge(0.66, 0.3, 0.14, 0.32, 0.6), (1, 0, 0)),
-                           (F.p(0.55, 0.12, 0.04), F.d, ridge(0.86, 0.42, 0.16, 0.32, 0.6), (1, 0, 0)),
-                           (F.p(0.95, 0.1, 0.02), F.d, ridge(0.72, 0.32, 0.14, 0.32, 0.6), (1, 0, 0))], 'paint', 'forearm.L', bevel=0.025)
+        fore = loft('Forearm.L', [(F.p(0.06, 0.1, 0.02), F.d, ridge(0.7, 0.32, 0.14, 0.32, 0.6), (1, 0, 0)),
+                                  (F.p(0.42, 0.13, 0.04), F.d, ridge(0.86, 0.44, 0.16, 0.32, 0.6), (1, 0, 0)),
+                                  (F.p(0.56, 0.13, 0.04), F.d, ridge(0.84, 0.42, 0.16, 0.32, 0.6), (1, 0, 0))], 'paint', 'forearm.L', bevel=0.025)
+        loft('ForearmLower.L', [(F.p(0.5, 0.11, 0.03), F.d, ridge(0.74, 0.38, 0.13, 0.32, 0.6), (1, 0, 0)),
+                                (F.p(0.97, 0.08, 0.01), F.d, ridge(0.56, 0.26, 0.11, 0.32, 0.6), (1, 0, 0))], 'paint', 'forearm.L', bevel=0.022)
         loft('ForeGuard.L', [(F.p(0.15, 0, 0.18), F.d, ridge(0.5, 0.2, 0.05, 0.3, 0.6), tuple(F.f)), (F.p(0.9, 0, 0.2), F.d, ridge(0.46, 0.24, 0.05, 0.3, 0.6), tuple(F.f))], 'accent', 'forearm.L', bevel=0.02)
         vents('ForeVent.L', F.p(0.45, 0, -0.27), 0.3, 0.32, 4, 'forearm.L', normal=tuple(-F.f), up=tuple(F.u))
         slots(fore, F.p(0.3, 0.52, 0.14), F.p(0.75, 0.53, 0.14), 4, tuple((Vector((1, 0, 0)) * 0.8 + F.f * 0.6).normalized()), 0.04, 0.12, 0.025, up=tuple(F.u))
@@ -200,6 +204,10 @@ def lg_strider(rig):
                              (S.p(0.52, 0, 0.18), S.d, ridge(0.86, 0.44, 0.04, 0.28, 0.6), f_s),
                              (S.p(0.92, 0, 0.12), S.d, ridge(0.66, 0.28, 0.04, 0.28, 0.6), f_s)], 'paint', 'shin.L', bevel=0.025)
         light('ShinLight.L', S.p(0.62, 0.39, 0.15), 0.025, 0.5, 'shin.L', normal=(1, 0, 0), up=tuple(S.u))
+        loft('Greave.L', [(S.p(0.1, 0, 0.2), S.d, ridge(0.78, 0.34, 0.03, 0.3, 0.62), f_s),
+                          (S.p(0.38, 0, 0.27), S.d, ridge(0.9, 0.4, 0.03, 0.3, 0.62), f_s)], 'paint', 'shin.L', bevel=0.02)
+        prism('Tasset.L', poly((-0.36, -0.42), (0.34, -0.38), (0.4, 0.36), (0.0, 0.44), (-0.38, 0.36)), 0.06, (1.05, -0.05, 4.2), tuple(Vector((1, -0.1, 0.12)).normalized()), 'paint', 'pelvis', taper=0.92, panel=0.03)
+        cyl('TassetHinge.L', (1.0, -0.3, 4.62), (1.0, 0.2, 4.62), 0.05, 'steel', 'pelvis', 10)
         facet = (S.f * 0.8 + S.s * 0.6).normalized()
         recess(shin, S.p(0.5, 0.24, 0.5), tuple(facet), 0.06, 0.5, 0.03, up=tuple(S.u), light=True, bone='shin.L')
         slots(shin, S.p(0.25, -0.2, 0.52), S.p(0.25, -0.05, 0.56), 3, tuple((S.f * 0.85 - S.s * 0.5).normalized()), 0.05, 0.16, 0.03, up=tuple(S.u))

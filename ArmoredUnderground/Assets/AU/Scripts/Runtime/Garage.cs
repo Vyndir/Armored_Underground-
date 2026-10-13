@@ -107,7 +107,7 @@ namespace AU
         void RebuildPreview()
         {
             if (_preview) Destroy(_preview);
-            _preview = Instantiate(GameAssets.I.mechPrefab, Origin + Vector3.up * 0.32f, Quaternion.identity);
+            _preview = Instantiate(GameAssets.I.mechPrefab, Origin + Vector3.up * 0.42f, Quaternion.identity);
             _previewRig = _preview.AddComponent<MechRig>();
             _previewRig.Init(null);
             _previewRig.Configure(_save.loadout);

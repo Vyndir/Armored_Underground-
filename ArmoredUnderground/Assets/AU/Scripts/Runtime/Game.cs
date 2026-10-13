@@ -411,6 +411,27 @@ namespace AU
             _garage.Close(); OpenGarage();
             yield return new WaitForSeconds(1.5f);
             yield return CaptureTour.Shot("05_garage_custom", 2);
+            // alternate builds for model review
+            var builds = new (string, Loadout)[]
+            {
+                ("racer", new Loadout { head = "hd_moth", core = "cr_wasp", arms = "ar_needle", legs = "lg_glide", booster = "bs_comet", weapon = "wp_lance", shoulder = "sh_spear", paint = new Color(0.12f, 0.13f, 0.16f), accent = new Color(0.95f, 0.15f, 0.45f), neon = new Color(1f, 0.2f, 0.6f) }),
+                ("heavy", new Loadout { head = "hd_bastion", core = "cr_anvil", arms = "ar_hauler", legs = "lg_bulwark", booster = "bs_tern", weapon = "wp_maul", shoulder = "sh_mines", paint = new Color(0.33f, 0.36f, 0.27f), accent = new Color(0.85f, 0.7f, 0.2f), neon = new Color(1f, 0.6f, 0.1f) }),
+                ("hopper", new Loadout { head = "hd_pike", core = "cr_wasp", arms = "ar_hand", legs = "lg_hopper", booster = "bs_flare", weapon = "wp_gale", shoulder = "sh_swarm", paint = new Color(0.62f, 0.64f, 0.68f), accent = new Color(0.1f, 0.5f, 0.95f), neon = new Color(0.2f, 0.8f, 1f) }),
+            };
+            var savedLoadout = save.loadout;
+            foreach (var (bn, bl) in builds)
+            {
+                foreach (Slot sl in Parts.Slots) if (!save.owned.Contains(bl[sl])) save.owned.Add(bl[sl]);
+                save.loadout = bl;
+                _garage.Close(); OpenGarage();
+                yield return new WaitForSeconds(0.8f);
+                _garage.PhotoMode = (0.55f, 15f, 6.5f, 38f, 4.6f);
+                yield return CaptureTour.Shot($"b_{bn}_front", 6);
+                _garage.PhotoMode = (2.5f, 15f, 7f, 38f, 4.8f);
+                yield return CaptureTour.Shot($"b_{bn}_back", 6);
+                _garage.PhotoMode = null;
+            }
+            save.loadout = savedLoadout;
             _garage.Close();
             yield return new WaitForSeconds(0.5f);
             // race

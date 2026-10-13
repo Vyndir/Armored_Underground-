@@ -233,7 +233,17 @@ namespace AU
         {
             if (!_mech)
             {
-                // showroom preview: idle flames
+                // showroom preview: a confident ready stance with a slow breathing sway, idle flames
+                float t = Time.time;
+                float br = Mathf.Sin(t * 1.1f);
+                Pose("pelvis", 0, 0, 0);
+                Pose("spine", 5f + br * 0.8f, 0, -4f);
+                Pose("chest", -1f + br * 0.6f, 0, 6f);
+                Pose("head", -6f, 0, -8f + Mathf.Sin(t * 0.37f) * 6f);
+                Pose("thigh.L", -10f, -5f); Pose("shin.L", 14f); Pose("foot.L", -4f);
+                Pose("thigh.R", 4f, 5f); Pose("shin.R", 8f); Pose("foot.R", -10f);
+                Pose("upperarm.R", -16f, 6f); Pose("forearm.R", 8f);
+                Pose("upperarm.L", 6f, -8f); Pose("forearm.L", -28f);
                 for (int i = 0; i < _flames.Count; i++) _flames[i].localScale = Vector3.Scale(_flameBase[i], new Vector3(0.65f, 0.65f, 0.35f + Random.value * 0.05f));
                 return;
             }
