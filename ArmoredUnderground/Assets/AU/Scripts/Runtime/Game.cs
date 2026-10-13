@@ -29,7 +29,8 @@ namespace AU
         readonly List<(Transform t, Vector3 pos, CityLayout.RouteDef def, Color color)> _markers = new();
         float _titleT, _raceEndT;
         bool _autotest;
-        public static readonly Vector3 PlayerSpawn = new(-82, 0.3f, -34);
+        public static Vector3 PlayerSpawn => CityLayout.Ground(CityLayout.PlayerSpawn.x, CityLayout.PlayerSpawn.y) + Vector3.up * 0.3f;
+        Vector3 RigShopFront => CityLayout.Ground(CityLayout.RigShop.x, CityLayout.RigShop.y - 4f);
 
         void Start()
         {
@@ -112,7 +113,7 @@ namespace AU
         {
             foreach (var m in _markers) if (m.t) Destroy(m.t.gameObject);
             _markers.Clear();
-            AddMarker(new Vector3(CityLayout.GarageDoor.x, 0, -30f), null, UIKit.Amber);
+            AddMarker(RigShopFront, null, UIKit.Amber);
             foreach (var d in CityLayout.Routes)
             {
                 bool locked = save.rep < d.repRequired;
@@ -167,7 +168,7 @@ namespace AU
             _driver.inputEnabled = true;
             state = State.Roam;
             LockCursor(true);
-            _hud.Toast("WELCOME TO KESSEL WARD", UIKit.Neon, 3f);
+            _hud.Toast("WELCOME TO THE BAY", UIKit.Neon, 3f);
         }
 
         static void LockCursor(bool v) { Cursor.lockState = v ? CursorLockMode.Locked : CursorLockMode.None; Cursor.visible = !v; }
@@ -282,7 +283,7 @@ namespace AU
         {
             player.gameObject.SetActive(true);
             ApplyLoadout();
-            player.Teleport(new Vector3(CityLayout.GarageDoor.x, 0.3f, -32f), 180f);
+            player.Teleport(RigShopFront + new Vector3(0, 0.3f, -6f), 180f);
             _chase.enabled = true;
             _chase.SnapBehind();
             _hud.SetVisible(true);
@@ -354,6 +355,7 @@ namespace AU
         {
             if (state == State.Title || state == State.Garage || !_hud) return;
             var markers = state == State.Roam ? _markers.Select(m => new Hud.Marker { pos = m.pos, color = m.color }).ToList() : null;
+            if (Keyboard.current != null && Keyboard.current.mKey.wasPressedThisFrame && (state == State.Roam || state == State.Race)) _hud.ToggleWorldMap();
             _hud.Tick(player, Bootstrap.MainCam, _chase.yaw, _driver.lockTarget, _race, save.credits, save.rep, PromptText(), markers);
         }
 
@@ -379,6 +381,36 @@ namespace AU
             _driver.enabled = false;
             yield return new WaitForSeconds(1.5f);
             yield return CaptureTour.Shot("01_roam", 2);
+            // world tour: fixed cameras by day and by night
+            _chase.enabled = false;
+            DayNight.I.frozen = true;
+            foreach (var (hour, pre) in new[] { (16.3f, "w_day_"), (22.5f, "w_night_") })
+            {
+                DayNight.I.SetHour(hour);
+                foreach (var (n, pos, look) in Bootstrap.TourShots(pre))
+                {
+                    var ct = Bootstrap.MainCam.transform;
+                    ct.position = pos; ct.LookAt(look);
+                    yield return CaptureTour.Shot(n, 25);
+                }
+            }
+            // the player's mech in the concept-art views
+            _chase.enabled = true;
+            foreach (var (n, hour, at, yaw) in new[]
+            {
+                ("h_bridge", 16.3f, new Vector2(-380, 52), 90f), ("h_hangar_day", 16.3f, new Vector2(-910, -1060), 0f),
+                ("h_island", 16.3f, new Vector2(1150, -1020), 125f), ("h_hangar_night", 22.5f, new Vector2(-910, -1060), 0f),
+            })
+            {
+                DayNight.I.SetHour(hour);
+                player.Teleport(CityLayout.Ground(at.x, at.y) + Vector3.up * 0.3f, yaw);
+                _chase.yaw = yaw; _chase.SnapBehind();
+                yield return CaptureTour.Shot(n, 40);
+            }
+            DayNight.I.SetHour(16.3f);
+            player.Teleport(PlayerSpawn, 90f);
+            _chase.yaw = 90f; _chase.SnapBehind();
+            yield return new WaitForSeconds(0.5f);
             // boost east down the street
             _chase.followMechYaw = true;
             for (float t = 0; t < 3.5f; t += Time.deltaTime)

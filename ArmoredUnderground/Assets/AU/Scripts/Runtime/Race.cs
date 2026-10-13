@@ -17,7 +17,7 @@ namespace AU
         public float respawnYaw;
     }
 
-    /// <summary>One underground race: grid, gates, standings, respawns and payout.</summary>
+    /// <summary>One race: grid, gates, standings, respawns and payout.</summary>
     public class Race : MonoBehaviour
     {
         public CityLayout.RouteDef def;
@@ -217,7 +217,7 @@ namespace AU
                 Vector3 p = r.mech.transform.position;
                 if (new Vector2(g.x - p.x, g.z - p.z).magnitude < GateRadius)
                 {
-                    r.respawn = new Vector3(g.x, 0.2f, g.z);
+                    r.respawn = g + Vector3.up * 0.3f;
                     r.next++;
                     if (r == player) { GatePassed?.Invoke(r.next >= gates.Count); PlaceGates(); }
                     if (r.next >= gates.Count)

@@ -15,7 +15,8 @@ namespace AU
         public float planeHeight = 0f;
         [Range(0.25f, 1f)] public float resolutionScale = 0.5f;
         public LayerMask reflectLayers = ~0;
-        public float farClip = 600f;
+        public float farClip = 2500f;
+        float _groundProbe;
 
         Camera _main;
         Camera _refl;
@@ -67,6 +68,15 @@ namespace AU
             _refl.targetTexture = _rt;
             _refl.cullingMask = reflectLayers;
             _refl.farClipPlane = farClip;
+            // mirror about the street when driving it, about the bay when over or near water
+            _groundProbe -= Time.unscaledDeltaTime;
+            if (_groundProbe <= 0)
+            {
+                _groundProbe = 0.3f;
+                Vector3 cp = _main.transform.position;
+                float g = CityLayout.GroundY(cp.x, cp.z);
+                planeHeight = g < CityLayout.WaterLevel + 0.5f || cp.y - g > 80f ? CityLayout.WaterLevel : Mathf.Round(g * 2f) * 0.5f;
+            }
             _refl.useOcclusionCulling = false;
 
             // Mirror position and basis about the plane. A pure mirror flips handedness,

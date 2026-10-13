@@ -35,6 +35,7 @@ namespace AU
         public float yaw;
         public float ap, en, overdrive, stagger;
         public bool grounded, boosting, hovering, overheated, overdriveActive;
+        public bool inWater;
         public float disabledTimer, staggerTimer;
         public int ammo;
         public float reloadTimer, fireCd, shoulderCd, qbCd, bladeCd, spin;
@@ -185,6 +186,9 @@ namespace AU
 
             // ---------------- horizontal movement
             float maxSpeed = overdriveActive ? st.overdriveSpeed : boosting ? st.boostSpeed : st.groundSpeed;
+            // wading in the bay: legs drag through the water
+            inWater = transform.position.y < CityLayout.WaterLevel - 0.8f;
+            if (inWater && grounded) maxSpeed *= 0.42f;
             Vector3 hv = new Vector3(velocity.x, 0, velocity.z);
             Vector3 target = c.move; target.y = 0;
             if (target.sqrMagnitude > 1) target.Normalize();

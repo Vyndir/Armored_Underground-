@@ -17,19 +17,34 @@ namespace AU
         public int Count => v.Count;
         /// <summary>Added to every tiled UV (lets buildings sharing a texture look different).</summary>
         public Vector2 uvShift;
+        /// <summary>Added to every vertex position (UVs keep using the unshifted coordinates).</summary>
+        public Vector3 shift;
 
         public void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector2 uva, Vector2 uvb, Vector2 uvc, Vector2 uvd, Color? color = null)
         {
             // Unity front faces are clockwise; for the triangles below this is the outward normal
             Vector3 nn = Vector3.Cross(d - a, b - a).normalized;
             int i = v.Count;
-            v.Add(a); v.Add(b); v.Add(c); v.Add(d);
+            v.Add(a + shift); v.Add(b + shift); v.Add(c + shift); v.Add(d + shift);
             n.Add(nn); n.Add(nn); n.Add(nn); n.Add(nn);
             uv.Add(uva); uv.Add(uvb); uv.Add(uvc); uv.Add(uvd);
             Color cc = color ?? Color.white;
             col.Add(cc); col.Add(cc); col.Add(cc); col.Add(cc);
             t.Add(i); t.Add(i + 2); t.Add(i + 1);
             t.Add(i); t.Add(i + 3); t.Add(i + 2);
+        }
+
+        /// <summary>Triangle; front face when a, b, c run clockwise seen from the front (Unity's convention).</summary>
+        public void Tri(Vector3 a, Vector3 b, Vector3 c, Vector2 ua, Vector2 ub, Vector2 uc, Color? color = null)
+        {
+            Vector3 nn = Vector3.Cross(b - a, c - a).normalized;
+            int i = v.Count;
+            v.Add(a + shift); v.Add(b + shift); v.Add(c + shift);
+            n.Add(nn); n.Add(nn); n.Add(nn);
+            uv.Add(ua); uv.Add(ub); uv.Add(uc);
+            Color cc = color ?? Color.white;
+            col.Add(cc); col.Add(cc); col.Add(cc);
+            t.Add(i); t.Add(i + 1); t.Add(i + 2);
         }
 
         /// <summary>Quad with UVs from its world size: u along a->b, v along a->d (meters / tile).</summary>
@@ -63,6 +78,7 @@ namespace AU
         public void Cylinder(Vector3 a, Vector3 b, float r, int sides, Color? color = null, bool caps = true, float r2 = -1)
         {
             if (r2 < 0) r2 = r;
+            a += shift; b += shift;
             Vector3 dir = (b - a).normalized;
             Vector3 side = Vector3.Cross(dir, Mathf.Abs(dir.y) > 0.9f ? Vector3.right : Vector3.up).normalized;
             Vector3 up = Vector3.Cross(side, dir);
@@ -107,7 +123,7 @@ namespace AU
             var mv = m.vertices; var mn = m.normals; var muv = m.uv;
             for (int i = 0; i < mv.Length; i++)
             {
-                v.Add(xf.MultiplyPoint3x4(mv[i]));
+                v.Add(xf.MultiplyPoint3x4(mv[i]) + shift);
                 n.Add(mn.Length > i ? xf.MultiplyVector(mn[i]).normalized : Vector3.up);
                 uv.Add(muv.Length > i ? muv[i] : Vector2.zero);
                 col.Add(color ?? Color.white);

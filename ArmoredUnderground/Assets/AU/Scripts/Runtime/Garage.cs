@@ -15,7 +15,7 @@ namespace AU
     /// </summary>
     public class Garage : MonoBehaviour
     {
-        public static readonly Vector3 Origin = new(6000, 0, 6000);
+        public static readonly Vector3 Origin = new(20000, 0, 20000);
         public bool IsOpen { get; private set; }
         public event Action Closed;
         public event Action LoadoutChanged;
@@ -292,6 +292,7 @@ namespace AU
         public void Open()
         {
             IsOpen = true;
+            DayNight.I?.Suspend(true);
             _set.SetActive(true);
             _canvas.gameObject.SetActive(true);
             _camPos = _cam.transform.position; _camRot = _cam.transform.rotation; _camFov = _cam.fieldOfView;
@@ -316,6 +317,7 @@ namespace AU
             RenderSettings.fog = _savedFog; RenderSettings.fogDensity = _savedFogDensity;
             RenderSettings.skybox = _savedSky; _cam.clearFlags = _savedClear; _cam.backgroundColor = _savedBg;
             _cam.transform.SetPositionAndRotation(_camPos, _camRot); _cam.fieldOfView = _camFov;
+            DayNight.I?.Suspend(false);
             Closed?.Invoke();
         }
 

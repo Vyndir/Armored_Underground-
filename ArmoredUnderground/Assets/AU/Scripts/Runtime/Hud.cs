@@ -116,15 +116,14 @@ namespace AU
             map.gameObject.AddComponent<Mask>().showMaskGraphic = true;
             _mapInner = Rect(map.transform, "Inner", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             const float S = MapScale;
-            for (int i = 0; i < CityLayout.AvenueX.Length; i++)
+            var mapTex = GameAssets.I.worldMap;
+            if (mapTex)
             {
-                float x = CityLayout.AvenueX[i];
-                Img(_mapInner, "Ave", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(x * S, (CityLayout.MinZ + CityLayout.MaxZ) * 0.5f * S), new Vector2(Mathf.Max(3, CityLayout.AvenueW[i] * S), (CityLayout.MaxZ - CityLayout.MinZ + 40) * S), new Color(0.5f, 0.58f, 0.7f, 0.45f));
-            }
-            for (int j = 0; j < CityLayout.StreetZ.Length; j++)
-            {
-                float z = CityLayout.StreetZ[j];
-                Img(_mapInner, "St", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2((CityLayout.MinX + CityLayout.MaxX) * 0.5f * S, z * S), new Vector2((CityLayout.MaxX - CityLayout.MinX + 40) * S, Mathf.Max(3, CityLayout.StreetW[j] * S)), new Color(0.5f, 0.58f, 0.7f, 0.45f));
+                var ri = new GameObject("WorldMapTex", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
+                ri.transform.SetParent(_mapInner, false);
+                ri.texture = mapTex;
+                ri.rectTransform.sizeDelta = Vector2.one * CityLayout.Half * 2 * S;
+                ri.color = new Color(1, 1, 1, 0.92f);
             }
             for (int i = 0; i < 8; i++) { var d = Img(_mapInner, "Dot", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(11, 11), Color.red, Circle); d.enabled = false; _mapDots.Add(d); }
             for (int i = 0; i < 8; i++) { var d = Img(_mapInner, "Marker", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(16, 16), Amber, Circle); d.enabled = false; _mapMarkers.Add(d); }
@@ -145,6 +144,63 @@ namespace AU
         }
 
         public const float MapScale = 0.35f;
+
+        // ------------------------------------------------------------------ full world map (M)
+        RectTransform _bigMap, _bigPlayer;
+        readonly List<Image> _bigMarkers = new();
+        public bool WorldMapOpen => _bigMap && _bigMap.gameObject.activeSelf;
+
+        public void ToggleWorldMap()
+        {
+            if (!_bigMap) BuildWorldMap();
+            _bigMap.gameObject.SetActive(!_bigMap.gameObject.activeSelf);
+        }
+
+        void BuildWorldMap()
+        {
+            const float size = 920f;
+            var panel = Img(_root, "WorldMap", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size + 40, size + 90), Panel);
+            _bigMap = panel.rectTransform;
+            Txt(_bigMap, "Title", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -12), new Vector2(size, 40), 30, TextAnchor.UpperCenter, Ink, FontStyle.BoldAndItalic).text = "THE BAY   ·   [M] CLOSE";
+            var area = Rect(_bigMap, "Area", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -20), new Vector2(size, size));
+            var ri = new GameObject("Tex", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
+            ri.transform.SetParent(area, false);
+            ri.texture = GameAssets.I.worldMap;
+            ri.rectTransform.sizeDelta = new Vector2(size, size);
+            float k = size / (CityLayout.Half * 2);
+            foreach (var v in CityLayout.Venues)
+            {
+                var pos = new Vector2(v.pos.x, v.pos.z) * k;
+                Img(area, "Venue", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), pos, new Vector2(30, 30), new Color(0.05f, 0.08f, 0.16f, 0.95f), Circle);
+                var n = Txt(area, "Num", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), pos, new Vector2(30, 30), 18, TextAnchor.MiddleCenter, Ink, FontStyle.Bold);
+                n.text = v.number.ToString();
+                var l = Txt(area, "Name", new Vector2(0.5f, 0.5f), new Vector2(0f, 0.5f), pos + new Vector2(20, 0), new Vector2(320, 24), 17, TextAnchor.MiddleLeft, Ink, FontStyle.Bold);
+                l.text = v.name;
+            }
+            for (int i = 0; i < 8; i++) { var d = Img(area, "Marker", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(16, 16), Amber, Circle); d.enabled = false; _bigMarkers.Add(d); }
+            var arrow = Txt(area, "Me", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(30, 30), 26, TextAnchor.MiddleCenter, Neon);
+            arrow.text = "▲";
+            _bigPlayer = arrow.rectTransform;
+            _bigMap.gameObject.SetActive(false);
+        }
+
+        void TickWorldMap(MechController p, List<Marker> markers)
+        {
+            if (!WorldMapOpen) return;
+            float k = 920f / (CityLayout.Half * 2);
+            _bigPlayer.anchoredPosition = new Vector2(p.transform.position.x, p.transform.position.z) * k;
+            _bigPlayer.localEulerAngles = new Vector3(0, 0, -p.yaw);
+            int mi = 0;
+            if (markers != null)
+                foreach (var m in markers)
+                {
+                    if (mi >= _bigMarkers.Count) break;
+                    var d = _bigMarkers[mi++];
+                    d.enabled = true; d.color = m.color;
+                    d.rectTransform.anchoredPosition = new Vector2(m.pos.x, m.pos.z) * k;
+                }
+            for (; mi < _bigMarkers.Count; mi++) _bigMarkers[mi].enabled = false;
+        }
 
         public void Toast(string text, Color c, float dur = 2.2f) { _toast.text = text; _toast.color = c; _toastT = dur; }
         public void Style(string text) { _style.text = text; _styleT = 1.4f; }
@@ -274,6 +330,7 @@ namespace AU
                     d.rectTransform.anchoredPosition = new Vector2(m.pos.x, m.pos.z) * MapScale;
                 }
             for (; mi < _mapMarkers.Count; mi++) _mapMarkers[mi].enabled = false;
+            TickWorldMap(p, markers);
         }
 
         public void SetVisible(bool v) => canvas.enabled = v;

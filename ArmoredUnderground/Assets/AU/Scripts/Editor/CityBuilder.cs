@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
-using static AU.CityLayout;
 
 namespace AU.EditorTools
 {
@@ -11,7 +10,7 @@ namespace AU.EditorTools
     /// lit facades and storefronts, neon signage, rooftop clutter, streetlights,
     /// parked cars and street props. Geometry is merged per block and material.
     /// </summary>
-    public class CityBuilder
+    public partial class CityBuilder
     {
         public const string MeshAssetPath = "Assets/AU/Generated/CityMeshes.asset";
 
@@ -32,7 +31,9 @@ namespace AU.EditorTools
 
         // merged geometry per material for the current group
         Dictionary<Material, MeshBuilder> builders = new();
-        MeshBuilder B(Material m) { if (!builders.TryGetValue(m, out var b)) builders[m] = b = new MeshBuilder(); return b; }
+        MeshBuilder B(Material m) { if (!builders.TryGetValue(m, out var b)) builders[m] = b = new MeshBuilder(); b.shift = shift; return b; }
+        /// <summary>Offset applied to all geometry, colliders and lights (buildings on sloped ground).</summary>
+        Vector3 shift;
 
         public static void Build(Transform parent)
         {
@@ -47,12 +48,7 @@ namespace AU.EditorTools
             meshContainer = null; meshCount = 0;
             CreateMaterials();
 
-            BuildGround();
-            for (int i = 0; i < AvenueX.Length - 1; i++)
-                for (int j = 0; j < StreetZ.Length - 1; j++)
-                    BuildBlock(i, j);
-            BuildBorder();
-            BuildStreets();
+            BuildWorld();
             AssetDatabase.SaveAssets();
         }
 
@@ -179,156 +175,17 @@ namespace AU.EditorTools
             meshCount++;
         }
 
-        static void AddBoxCollider(Transform parent, Vector3 min, Vector3 max, string name = "Col")
+        void AddBoxCollider(Transform parent, Vector3 min, Vector3 max, string name = "Col")
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             var bc = go.AddComponent<BoxCollider>();
-            bc.center = (min + max) * 0.5f;
+            bc.center = (min + max) * 0.5f + shift;
             bc.size = max - min;
             GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
         }
 
         static Vector2 Tile(float x, float y) => new(x, y);
-
-        // ------------------------------------------------------------------ ground
-        void BuildGround()
-        {
-            float x0 = MinX - 200, x1 = MaxX + 200, z0 = MinZ - 200, z1 = MaxZ + 200;
-            // road surface: one big quad grid (subdivided so fog/vertex precision behave)
-            var b = B(asphalt);
-            int n = 16;
-            for (int i = 0; i < n; i++)
-                for (int j = 0; j < n; j++)
-                {
-                    float ax = Mathf.Lerp(x0, x1, i / (float)n), bx = Mathf.Lerp(x0, x1, (i + 1) / (float)n);
-                    float az = Mathf.Lerp(z0, z1, j / (float)n), bz = Mathf.Lerp(z0, z1, (j + 1) / (float)n);
-                    b.Quad(new Vector3(ax, 0, az), new Vector3(bx, 0, az), new Vector3(bx, 0, bz), new Vector3(ax, 0, bz), Vector2.zero, Vector2.right, Vector2.one, Vector2.up);
-                }
-            Flush("Ground", root);
-            var groundCol = new GameObject("GroundCollider");
-            groundCol.transform.SetParent(root, false);
-            var bc = groundCol.AddComponent<BoxCollider>();
-            bc.center = new Vector3((x0 + x1) / 2, -0.5f, (z0 + z1) / 2);
-            bc.size = new Vector3(x1 - x0, 1, z1 - z0);
-            groundCol.layer = 0;
-        }
-
-        // ------------------------------------------------------------------ blocks
-        public static Rect BlockRect(int i, int j)
-        {
-            float bx0 = AvenueX[i] + AvenueW[i] * 0.5f, bx1 = AvenueX[i + 1] - AvenueW[i + 1] * 0.5f;
-            float bz0 = StreetZ[j] + StreetW[j] * 0.5f, bz1 = StreetZ[j + 1] - StreetW[j + 1] * 0.5f;
-            return Rect.MinMaxRect(bx0, bz0, bx1, bz1);
-        }
-
-        void BuildBlock(int i, int j)
-        {
-            var blockRoot = new GameObject($"Block_{i}_{j}").transform;
-            blockRoot.SetParent(root, false);
-            Rect r = BlockRect(i, j);
-            // sidewalk slab with curb
-            BuildSidewalk(r);
-            Rect lot = Rect.MinMaxRect(r.xMin + Sidewalk, r.yMin + Sidewalk, r.xMax - Sidewalk, r.yMax - Sidewalk);
-
-            bool garage = i == 2 && j == 3;
-            if (garage) BuildGarage(lot, blockRoot);
-            else
-            {
-                // split into lots
-                float depth = lot.height;
-                int rows = depth > 60 ? 2 : 1;
-                for (int row = 0; row < rows; row++)
-                {
-                    float z0 = rows == 1 ? lot.yMin : (row == 0 ? lot.yMin : lot.yMin + depth * 0.5f);
-                    float z1 = rows == 1 ? lot.yMax : (row == 0 ? lot.yMin + depth * 0.5f : lot.yMax);
-                    float x = lot.xMin;
-                    while (x < lot.xMax - 1)
-                    {
-                        float w = R(16, 34);
-                        if (lot.xMax - (x + w) < 14) w = lot.xMax - x;
-                        var faces = new bool[4]; // W, E, S, N touch street
-                        faces[0] = Mathf.Abs(x - lot.xMin) < 0.1f;
-                        faces[1] = Mathf.Abs(x + w - lot.xMax) < 0.1f;
-                        faces[2] = row == 0;
-                        faces[3] = row == rows - 1;
-                        BuildBuilding(Rect.MinMaxRect(x, z0, x + w, z1), faces, blockRoot);
-                        x += w;
-                    }
-                }
-            }
-            Flush($"Block_{i}_{j}_Geo", blockRoot);
-        }
-
-        void BuildSidewalk(Rect r)
-        {
-            var b = B(sidewalk);
-            b.Box(new Vector3(r.xMin, 0, r.yMin), new Vector3(r.xMax, 0.22f, r.yMax), Tile(4, 4), 4); // top only
-            var c = B(curb);
-            // curb faces
-            c.Box(new Vector3(r.xMin, 0, r.yMin), new Vector3(r.xMax, 0.22f, r.yMax), Tile(2, 0.3f), 1 | 2 | 16 | 32);
-        }
-
-        void BuildBuilding(Rect f, bool[] street, Transform parent)
-        {
-            float cx = f.center.x, cz = f.center.y;
-            float dist = new Vector2(cx, cz).magnitude;
-            float t = Mathf.Clamp01(dist / 520f);
-            float h = Mathf.Lerp(120f, 26f, t) * R(0.45f, 1.35f);
-            if (R() < 0.08f && t < 0.5f) h *= 1.7f; // occasional landmark tower
-            h = Mathf.Max(16f, Mathf.Round((h - 6.6f) / 3.6f) * 3.6f + 6.6f);
-            int fi = rnd.Next(facades.Length);
-            var facade = facades[fi];
-            var store = Pick(storefronts);
-            // shift texture per building so neighbours sharing a facade don't line up
-            B(facade).uvShift = new Vector2(rnd.Next(0, 4) * 0.25f, rnd.Next(0, 4) * 0.25f);
-            B(store).uvShift = new Vector2(R(), 0);
-            var concrete = R() < 0.5f ? concreteA : concreteB;
-
-            // podium: storefronts on street faces, concrete elsewhere
-            int storeFaces = (street[0] ? 2 : 0) | (street[1] ? 1 : 0) | (street[2] ? 32 : 0) | (street[3] ? 16 : 0);
-            Vector3 pmin = new Vector3(f.xMin, 0, f.yMin), pmax = new Vector3(f.xMax, 6f, f.yMax);
-            B(store).Box(pmin, pmax, Tile(24, 6), storeFaces);
-            B(concrete).Box(pmin, pmax, Tile(8, 8), 63 & ~storeFaces & ~4 & ~8);
-            // ledge
-            B(concrete).Box(new Vector3(f.xMin - 0.4f, 6f, f.yMin - 0.4f), new Vector3(f.xMax + 0.4f, 6.6f, f.yMax + 0.4f), Tile(8, 1));
-
-            float bodyTop = h;
-            bool setback = h > 55 && R() < 0.65f;
-            float sb = setback ? Mathf.Round((6.6f + (h - 6.6f) * R(0.45f, 0.7f)) / 3.6f) * 3.6f : h;
-            B(facade).Box(new Vector3(f.xMin, 6.6f, f.yMin), new Vector3(f.xMax, setback ? sb : bodyTop, f.yMax), Tile(12, 14.4f), 63 & ~8 & ~4);
-            AddBoxCollider(parent, new Vector3(f.xMin, 0, f.yMin), new Vector3(f.xMax, setback ? sb : bodyTop, f.yMax));
-            Rect top = f;
-            float topY = setback ? sb : bodyTop;
-            Cap(f, topY, concrete);
-            if (setback)
-            {
-                float inset = R(3f, 6f);
-                Rect tw = Rect.MinMaxRect(f.xMin + inset, f.yMin + inset, f.xMax - inset, f.yMax - inset);
-                if (tw.width > 8 && tw.height > 8)
-                {
-                    var tf = R() < 0.5f ? facade : Pick(facades);
-                    B(tf).Box(new Vector3(tw.xMin, sb, tw.yMin), new Vector3(tw.xMax, h, tw.yMax), Tile(12, 14.4f), 63 & ~8 & ~4);
-                    AddBoxCollider(parent, new Vector3(tw.xMin, sb, tw.yMin), new Vector3(tw.xMax, h, tw.yMax));
-                    Cap(tw, h, concrete);
-                    top = tw; topY = h;
-                    Rooftop(Rect.MinMaxRect(f.xMin + 1, f.yMin + 1, f.xMin + inset - 0.5f, f.yMax - 1), sb, false);
-                }
-            }
-            Rooftop(top, topY, true);
-            FloorBands(f, 6.6f, setback ? sb : bodyTop, fi, concrete);
-
-            // street dressing on each street-facing side
-            for (int s = 0; s < 4; s++)
-            {
-                if (!street[s]) continue;
-                FaceInfo(f, s, out Vector3 a, out Vector3 dir, out Vector3 outN, out float len);
-                if (R() < 0.45f) Awning(a, dir, outN, len);
-                if (R() < 0.38f && h > 20) VerticalSign(a, dir, outN, len, h);
-                if (R() < 0.3f && len > 14) StoreSign(a, dir, outN, len);
-                FacadeACs(a, dir, outN, len, h);
-            }
-        }
 
         /// <summary>Face s of rect: 0=W,1=E,2=S,3=N. a = start corner at ground, dir along face, outN outward.</summary>
         static void FaceInfo(Rect f, int s, out Vector3 a, out Vector3 dir, out Vector3 outN, out float len)
@@ -505,186 +362,8 @@ namespace AU.EditorTools
             }
         }
 
-        void BuildGarage(Rect f, Transform parent)
-        {
-            float h = 16f;
-            B(concreteB).Box(new Vector3(f.xMin, 0, f.yMin), new Vector3(f.xMax, h, f.yMax), Tile(8, 8), 63 & ~8);
-            AddBoxCollider(parent, new Vector3(f.xMin, 0, f.yMin), new Vector3(f.xMax, h, f.yMax));
-            Cap(f, h, concreteA);
-            // roller door on the south face, lit from inside
-            float cx = GarageDoor.x;
-            var doorMat = Mats.Neon("GarageDoor", new Color(1f, 0.55f, 0.15f) * 1.2f);
-            Vector3 d0 = new Vector3(cx - 11, 0.25f, f.yMin - 0.05f), d1 = new Vector3(cx + 11, 0.25f, f.yMin - 0.05f);
-            B(doorMat).Quad(d0, d1, d1 + Vector3.up * 11, d0 + Vector3.up * 11, Vector2.zero, Vector2.right, Vector2.one, Vector2.up);
-            // hazard frame
-            B(neons[2]).BoxCentered(new Vector3(cx, 11.4f, f.yMin - 0.3f), new Vector3(23, 0.4f, 0.4f), Tile(1, 1));
-            B(neons[2]).BoxCentered(new Vector3(cx - 11.4f, 5.7f, f.yMin - 0.3f), new Vector3(0.4f, 11.4f, 0.4f), Tile(1, 1));
-            B(neons[2]).BoxCentered(new Vector3(cx + 11.4f, 5.7f, f.yMin - 0.3f), new Vector3(0.4f, 11.4f, 0.4f), Tile(1, 1));
-            var lm = StrokeFont.TubeMesh("RIG SHOP", 2.2f, 0.12f);
-            float w = lm.bounds.size.x;
-            B(neons[0]).Append(lm, Matrix4x4.TRS(new Vector3(cx - w * 0.5f, 12.6f, f.yMin - 0.4f), Quaternion.identity, Vector3.one));
-            Object.DestroyImmediate(lm);
-            AddLight(new Vector3(cx, 8, f.yMin - 6), new Color(1f, 0.6f, 0.25f), 6f, 26f);
-            Rooftop(f, h, true);
-        }
-
-        // ------------------------------------------------------------------ border ring
-        void BuildBorder()
-        {
-            var g = new GameObject("Border").transform;
-            g.SetParent(root, false);
-            float pad = 4;
-            float w0 = AvenueX[0] - AvenueW[0] / 2 - Sidewalk, w1 = AvenueX[^1] + AvenueW[^1] / 2 + Sidewalk;
-            float s0 = StreetZ[0] - StreetW[0] / 2 - Sidewalk, s1 = StreetZ[^1] + StreetW[^1] / 2 + Sidewalk;
-            // sidewalks outside the outer roads
-            BuildSidewalk(Rect.MinMaxRect(w0 - 60, s0 - 60, w0 + Sidewalk, s1 + 60));
-            BuildSidewalk(Rect.MinMaxRect(w1 - Sidewalk, s0 - 60, w1 + 60, s1 + 60));
-            BuildSidewalk(Rect.MinMaxRect(w0, s0 - 60, w1, s0 + Sidewalk));
-            BuildSidewalk(Rect.MinMaxRect(w0, s1 - Sidewalk, w1, s1 + 60));
-            // building walls facing inward
-            void Row(Rect area, bool alongX, bool[] faces)
-            {
-                float start = alongX ? area.xMin : area.yMin, end = alongX ? area.xMax : area.yMax;
-                float p = start;
-                while (p < end - 1)
-                {
-                    float w = Mathf.Min(R(18, 36), end - p);
-                    Rect f = alongX ? Rect.MinMaxRect(p, area.yMin, p + w, area.yMax) : Rect.MinMaxRect(area.xMin, p, area.xMax, p + w);
-                    BuildBuilding(f, faces, g);
-                    p += w;
-                }
-            }
-            Row(Rect.MinMaxRect(w0 - 40, s0, w0, s1), false, new[] { false, true, false, false });
-            Row(Rect.MinMaxRect(w1, s0, w1 + 40, s1), false, new[] { true, false, false, false });
-            Row(Rect.MinMaxRect(w0 - 40, s0 - 40, w1 + 40, s0), true, new[] { false, false, false, true });
-            Row(Rect.MinMaxRect(w0 - 40, s1, w1 + 40, s1 + 40), true, new[] { false, false, true, false });
-            Flush("Border_Geo", g);
-            // invisible limits
-            AddBoxCollider(g, new Vector3(w0 - pad - 2, 0, s0 - 50), new Vector3(w0 - pad, 300, s1 + 50), "Limit");
-            AddBoxCollider(g, new Vector3(w1 + pad, 0, s0 - 50), new Vector3(w1 + pad + 2, 300, s1 + 50), "Limit");
-            AddBoxCollider(g, new Vector3(w0 - 50, 0, s0 - pad - 2), new Vector3(w1 + 50, 300, s0 - pad), "Limit");
-            AddBoxCollider(g, new Vector3(w0 - 50, 0, s1 + pad), new Vector3(w1 + 50, 300, s1 + pad + 2), "Limit");
-        }
-
-        // ------------------------------------------------------------------ streets
-        void BuildStreets()
-        {
-            var g = new GameObject("Streets").transform;
-            g.SetParent(root, false);
-            var lights = new GameObject("StreetLights").transform;
-            lights.SetParent(root, false);
-            lightParent = lights;
-
-            // avenues (N-S)
-            for (int i = 0; i < AvenueX.Length; i++)
-            {
-                float x = AvenueX[i], hw = AvenueW[i] * 0.5f;
-                for (int j = 0; j < StreetZ.Length - 1; j++)
-                {
-                    float z0 = StreetZ[j] + StreetW[j] * 0.5f, z1 = StreetZ[j + 1] - StreetW[j + 1] * 0.5f;
-                    Segment(new Vector3(x, 0, z0), new Vector3(x, 0, z1), hw, AvenueW[i] >= 22);
-                }
-            }
-            for (int j = 0; j < StreetZ.Length; j++)
-            {
-                float z = StreetZ[j], hw = StreetW[j] * 0.5f;
-                for (int i = 0; i < AvenueX.Length - 1; i++)
-                {
-                    float x0 = AvenueX[i] + AvenueW[i] * 0.5f, x1 = AvenueX[i + 1] - AvenueW[i + 1] * 0.5f;
-                    Segment(new Vector3(x0, 0, z), new Vector3(x1, 0, z), hw, StreetW[j] >= 22);
-                }
-            }
-            // intersections: crosswalks + traffic lights
-            for (int i = 0; i < AvenueX.Length; i++)
-                for (int j = 0; j < StreetZ.Length; j++)
-                    Intersection(i, j);
-            Flush("Streets_Geo", g);
-        }
-
         Transform lightParent;
         int lampCount;
-
-        void Segment(Vector3 a, Vector3 b, float hw, bool twoLanesEachWay)
-        {
-            Vector3 dir = (b - a).normalized;
-            Vector3 right = Vector3.Cross(Vector3.up, dir); // points to the right of travel
-            float len = Vector3.Distance(a, b);
-            // center line: double solid yellow on wide roads, dashed white on narrow
-            if (twoLanesEachWay)
-            {
-                LineStrip(a, dir, len, right * 0.18f, 0.12f, 0);
-                LineStrip(a, dir, len, -right * 0.18f, 0.12f, 0);
-                LineStrip(a, dir, len, right * hw * 0.5f, 0.12f, 3f);
-                LineStrip(a, dir, len, -right * hw * 0.5f, 0.12f, 3f);
-            }
-            else LineStrip(a, dir, len, Vector3.zero, 0.12f, 3f);
-            // edge lines
-            LineStrip(a, dir, len, right * (hw - 0.6f), 0.12f, 0);
-            LineStrip(a, dir, len, -right * (hw - 0.6f), 0.12f, 0);
-
-            // streetlights on both sidewalks, staggered
-            float spacing = 34f;
-            for (int side = -1; side <= 1; side += 2)
-            {
-                float offset = side < 0 ? spacing * 0.5f : spacing;
-                for (float d = offset; d < len - 6; d += spacing)
-                {
-                    Vector3 basePos = a + dir * d + right * side * (hw + 1.2f);
-                    Streetlight(basePos, -right * side);
-                }
-            }
-            // parked cars along curbs
-            for (int side = -1; side <= 1; side += 2)
-            {
-                float d = R(8, 20);
-                while (d < len - 10)
-                {
-                    if (R() < 0.35f)
-                    {
-                        Vector3 p = a + dir * d + right * side * (hw - 1.4f);
-                        Car(p, dir * (R() < 0.5f ? 1 : -1));
-                    }
-                    d += R(7, 16);
-                }
-            }
-            // steam vents
-            if (R() < 0.3f)
-            {
-                var sv = new GameObject("SteamVent");
-                sv.transform.SetParent(lightParent, false);
-                sv.transform.position = a + dir * R(10, len - 10) + right * R(-hw * 0.5f, hw * 0.5f);
-                sv.AddComponent<SteamVentMarker>();
-                B(darkMetal).Cylinder(sv.transform.position, sv.transform.position + Vector3.up * 0.03f, 0.6f, 12);
-            }
-            // occasional string lights crossing narrow streets
-            if (hw < 10 && R() < 0.5f)
-            {
-                int n = rnd.Next(1, 3);
-                for (int k = 0; k < n; k++)
-                {
-                    Vector3 c = a + dir * R(10, len - 10);
-                    StringLights(c - right * (hw + Sidewalk), c + right * (hw + Sidewalk), R(7, 10));
-                }
-            }
-        }
-
-        void LineStrip(Vector3 a, Vector3 dir, float len, Vector3 off, float width, float dash)
-        {
-            Vector3 right = Vector3.Cross(Vector3.up, dir) * width * 0.5f;
-            var b = B(laneLine);
-            float y = 0.015f;
-            if (dash <= 0)
-            {
-                Vector3 p0 = a + off + Vector3.up * y, p1 = a + off + dir * len + Vector3.up * y;
-                b.Quad(p0 - right, p0 + right, p1 + right, p1 - right, Vector2.zero, Vector2.right, Vector2.one, Vector2.up);
-                return;
-            }
-            for (float d = 2; d < len - 2; d += dash * 2.5f)
-            {
-                Vector3 p0 = a + off + dir * d + Vector3.up * y, p1 = p0 + dir * dash;
-                b.Quad(p0 - right, p0 + right, p1 + right, p1 - right, Vector2.zero, Vector2.right, Vector2.one, Vector2.up);
-            }
-        }
 
         void Streetlight(Vector3 p, Vector3 towardRoad)
         {
@@ -725,7 +404,7 @@ namespace AU.EditorTools
         {
             var go = new GameObject("Light");
             go.transform.SetParent(lightParent ? lightParent : root, false);
-            go.transform.position = pos;
+            go.transform.position = pos + shift;
             var l = go.AddComponent<Light>();
             l.type = LightType.Point;
             l.color = color;
@@ -778,40 +457,6 @@ namespace AU.EditorTools
                 if (k < segs) B(mat).BoxCentered(p - Vector3.up * 0.15f, Vector3.one * 0.2f, Tile(1, 1));
                 prev = p;
             }
-        }
-
-        void Intersection(int i, int j)
-        {
-            float x = AvenueX[i], z = StreetZ[j];
-            float hw = AvenueW[i] * 0.5f, hs = StreetW[j] * 0.5f;
-            var b = B(laneLine);
-            // zebra crossings on all four arms
-            for (int s = 0; s < 4; s++)
-            {
-                bool ns = s < 2; // crossing the avenue (north/south arms)
-                float sign = s % 2 == 0 ? 1 : -1;
-                if (ns)
-                {
-                    float zc = z + sign * (hs + 2.2f);
-                    for (float xx = x - hw + 1; xx < x + hw - 1; xx += 1.6f)
-                        b.Quad(new Vector3(xx, 0.016f, zc - 1.5f), new Vector3(xx + 0.8f, 0.016f, zc - 1.5f), new Vector3(xx + 0.8f, 0.016f, zc + 1.5f), new Vector3(xx, 0.016f, zc + 1.5f), Vector2.zero, Vector2.right, Vector2.one, Vector2.up);
-                }
-                else
-                {
-                    float xc = x + sign * (hw + 2.2f);
-                    for (float zz = z - hs + 1; zz < z + hs - 1; zz += 1.6f)
-                        b.Quad(new Vector3(xc - 1.5f, 0.016f, zz + 0.8f), new Vector3(xc + 1.5f, 0.016f, zz + 0.8f), new Vector3(xc + 1.5f, 0.016f, zz), new Vector3(xc - 1.5f, 0.016f, zz), Vector2.zero, Vector2.right, Vector2.one, Vector2.up);
-                }
-            }
-            // traffic signal on one corner
-            Vector3 pole = new Vector3(x + hw + 1.5f, 0, z - hs - 1.5f);
-            B(darkMetal).Cylinder(pole, pole + Vector3.up * 7.5f, 0.18f, 8);
-            Vector3 armEnd = pole + Vector3.up * 7.2f + Vector3.left * (hw * 0.8f);
-            B(darkMetal).Cylinder(pole + Vector3.up * 7.2f, armEnd, 0.1f, 6);
-            B(darkMetal).BoxCentered(armEnd + Vector3.down * 0.9f, new Vector3(0.6f, 1.8f, 0.5f), Tile(1, 1));
-            bool green = (i + j) % 2 == 0;
-            B(green ? neons[4] : neons[5]).BoxCentered(armEnd + Vector3.down * (green ? 1.45f : 0.35f) + Vector3.back * 0.27f, new Vector3(0.35f, 0.35f, 0.05f), Tile(1, 1));
-            B(neons[2]).BoxCentered(armEnd + Vector3.down * 0.9f + Vector3.back * 0.27f, new Vector3(0.35f, 0.35f, 0.05f) * 0.6f, Tile(1, 1));
         }
     }
 }

@@ -25,7 +25,7 @@ namespace AU
             _probe.timeSlicingMode = UnityEngine.Rendering.ReflectionProbeTimeSlicingMode.IndividualFaces;
             _probe.resolution = 128;
             _probe.size = new Vector3(400, 200, 400);
-            _probe.farClipPlane = 300;
+            _probe.farClipPlane = 600;
             _probe.hdr = true;
             _probe.importance = 10;
         }
@@ -110,8 +110,11 @@ namespace AU
             if (!cam) return;
             Vector3 p = cam.position;
             Vector3 f = cam.forward; f.y = 0;
+            bool rain = DayNight.I == null || DayNight.I.Raining;
+            var rem = _rain.emission; rem.enabled = rain;
+            var sem = _splash.emission; sem.enabled = rain;
             _rain.transform.position = new Vector3(p.x, p.y + 25f, p.z) + f.normalized * 25f;
-            _splash.transform.position = new Vector3(p.x, 0.05f, p.z) + f.normalized * 18f;
+            _splash.transform.position = new Vector3(p.x, CityLayout.GroundY(p.x, p.z) + 0.15f, p.z) + f.normalized * 18f;
             if (_probe)
             {
                 _probe.transform.position = p;

@@ -99,7 +99,8 @@ namespace AU
             if (Physics.SphereCast(_pivot, 0.8f, back, out var hit, _dist, ~(1 << 6 | 1 << 7), QueryTriggerInteraction.Ignore))
                 d2 = Mathf.Max(2.5f, hit.distance - 0.3f);
             Vector3 pos = _pivot + back * d2;
-            if (pos.y < 0.8f) pos.y = 0.8f;
+            float floor = Mathf.Max(CityLayout.WaterLevel, _pivot.y - 30f) + 0.8f;
+            if (pos.y < floor) pos.y = floor;
 
             // shake
             _trauma = Mathf.Max(0, _trauma - dt * 1.6f);

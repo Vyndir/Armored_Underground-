@@ -11,7 +11,7 @@ namespace AU.EditorTools
         public const string Dir = "Assets/AU/Generated/Textures";
 
         // ------------------------------------------------------------------ noise
-        static float Hash(int x, int y, int seed)
+        public static float Hash(int x, int y, int seed)
         {
             unchecked
             {
@@ -196,7 +196,7 @@ namespace AU.EditorTools
         /// Building facade: one texture tile = floors x bays. Albedo has frames/mullions,
         /// emission has lit windows (warm/cool/dark, some with blinds), alpha unused.
         /// </summary>
-        public static (Texture2D albedo, Texture2D emission) Facade(string name, int seed, int floors, int bays, float glassFrac, Color frameColor, float litChance, Color coolTint, bool curtainWall)
+        public static (Texture2D albedo, Texture2D emission) Facade(string name, int seed, int floors, int bays, float glassFrac, Color frameColor, float litChance, Color coolTint, bool curtainWall, Color? glassTint = null)
         {
             const int S = 512;
             var alb = new Color[S * S];
@@ -239,7 +239,7 @@ namespace AU.EditorTools
                                 continue;
                             }
                             // glass: dark reflective with a faint sky gradient
-                            Color g = new Color(0.025f, 0.03f, 0.042f) * (0.7f + gy * 0.6f);
+                            Color g = (glassTint ?? new Color(0.025f, 0.03f, 0.042f)) * (0.7f + gy * 0.6f);
                             alb[y * S + x] = g;
                             if (lit)
                             {

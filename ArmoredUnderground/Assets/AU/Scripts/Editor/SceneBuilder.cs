@@ -114,83 +114,143 @@ namespace AU.EditorTools
 
         static void BuildLighting(Transform world)
         {
-            var moonGo = new GameObject("Moon");
-            moonGo.transform.SetParent(world, false);
-            moonGo.transform.rotation = Quaternion.Euler(42, -35, 0);
-            var moon = moonGo.AddComponent<Light>();
-            moon.type = LightType.Directional;
-            moon.color = new Color(0.5f, 0.58f, 0.9f);
-            moon.intensity = 0.22f;
-            moon.shadows = LightShadows.Soft;
-            moon.shadowStrength = 0.75f;
+            // one directional light: the sun by day, the moon by night (driven by DayNight)
+            var sunGo = new GameObject("Sun");
+            sunGo.transform.SetParent(world, false);
+            sunGo.transform.rotation = Quaternion.Euler(38, -30, 0);
+            var sun = sunGo.AddComponent<Light>();
+            sun.type = LightType.Directional;
+            sun.color = new Color(1f, 0.93f, 0.84f);
+            sun.intensity = 1.8f;
+            sun.shadows = LightShadows.Soft;
+            sun.shadowStrength = 0.9f;
 
-            var sky = Mats.Custom("NightSky", Shader.Find("AU/NightSky"));
+            var sky = Mats.Custom("Sky", Shader.Find("AU/Sky"));
             RenderSettings.skybox = sky;
-            RenderSettings.sun = moon;
+            RenderSettings.sun = sun;
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.08f, 0.09f, 0.15f);
-            RenderSettings.ambientEquatorColor = new Color(0.07f, 0.05f, 0.09f);
-            RenderSettings.ambientGroundColor = new Color(0.02f, 0.02f, 0.03f);
+            RenderSettings.ambientSkyColor = new Color(0.5f, 0.6f, 0.78f);
+            RenderSettings.ambientEquatorColor = new Color(0.46f, 0.47f, 0.47f);
+            RenderSettings.ambientGroundColor = new Color(0.24f, 0.22f, 0.2f);
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Exponential;
-            RenderSettings.fogDensity = 0.0048f;
-            RenderSettings.fogColor = new Color(0.045f, 0.04f, 0.075f);
+            RenderSettings.fogDensity = 0.00032f;
+            RenderSettings.fogColor = new Color(0.64f, 0.73f, 0.84f);
             RenderSettings.defaultReflectionMode = DefaultReflectionMode.Skybox;
             RenderSettings.reflectionIntensity = 1f;
+
+            // long sunny views: push shadows out and use four cascades
+            if (GraphicsSettings.defaultRenderPipeline is UniversalRenderPipelineAsset rp)
+            {
+                rp.shadowDistance = 420f;
+                rp.shadowCascadeCount = 4;
+                rp.cascade4Split = new Vector3(0.04f, 0.13f, 0.36f);
+                rp.mainLightShadowmapResolution = 4096;
+                EditorUtility.SetDirty(rp);
+            }
+            foreach (var guid in AssetDatabase.FindAssets("t:UniversalRenderPipelineAsset"))
+            {
+                var a = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(AssetDatabase.GUIDToAssetPath(guid));
+                if (!a) continue;
+                a.shadowDistance = Mathf.Max(a.shadowDistance, 300f);
+                EditorUtility.SetDirty(a);
+            }
+        }
+
+        static VolumeProfile NewProfile(string name)
+        {
+            string path = Gen + "/" + name + ".asset";
+            if (File.Exists(path)) AssetDatabase.DeleteAsset(path);
+            var profile = ScriptableObject.CreateInstance<VolumeProfile>();
+            AssetDatabase.CreateAsset(profile, path);
+            return profile;
+        }
+
+        static T Add<T>(VolumeProfile profile) where T : VolumeComponent
+        {
+            var c = profile.Add<T>(false);
+            c.name = typeof(T).Name;
+            AssetDatabase.AddObjectToAsset(c, profile);
+            return c;
         }
 
         static void BuildVolumes(Transform world)
         {
-            const string path = Gen + "/PostProfile.asset";
-            if (File.Exists(path)) AssetDatabase.DeleteAsset(path);
-            var profile = ScriptableObject.CreateInstance<VolumeProfile>();
-            AssetDatabase.CreateAsset(profile, path);
-            T Add<T>() where T : VolumeComponent
-            {
-                var c = profile.Add<T>(false);
-                c.name = typeof(T).Name;
-                AssetDatabase.AddObjectToAsset(c, profile);
-                return c;
-            }
-            var bloom = Add<Bloom>();
+            // night: the rain-soaked neon grade
+            var night = NewProfile("PostNight");
+            var bloom = Add<Bloom>(night);
             bloom.threshold.Override(0.95f);
             bloom.intensity.Override(0.85f);
             bloom.scatter.Override(0.72f);
             bloom.highQualityFiltering.Override(true);
-            var tm = Add<Tonemapping>();
-            tm.mode.Override(TonemappingMode.ACES);
-            var ca = Add<ColorAdjustments>();
+            Add<Tonemapping>(night).mode.Override(TonemappingMode.ACES);
+            var ca = Add<ColorAdjustments>(night);
             ca.postExposure.Override(0.35f);
             ca.contrast.Override(16f);
             ca.saturation.Override(12f);
-            var wb = Add<WhiteBalance>();
+            var wb = Add<WhiteBalance>(night);
             wb.temperature.Override(-10f);
             wb.tint.Override(6f);
-            var st = Add<SplitToning>();
+            var st = Add<SplitToning>(night);
             st.shadows.Override(new Color(0.25f, 0.4f, 0.55f));
             st.highlights.Override(new Color(1f, 0.72f, 0.5f));
             st.balance.Override(15f);
-            var vg = Add<Vignette>();
+            var vg = Add<Vignette>(night);
             vg.intensity.Override(0.3f);
             vg.smoothness.Override(0.45f);
-            var chr = Add<ChromaticAberration>();
-            chr.intensity.Override(0.08f);
-            var grain = Add<FilmGrain>();
+            Add<ChromaticAberration>(night).intensity.Override(0.08f);
+            var grain = Add<FilmGrain>(night);
             grain.type.Override(FilmGrainLookup.Thin1);
             grain.intensity.Override(0.15f);
-            var mb = Add<MotionBlur>();
+            var mb = Add<MotionBlur>(night);
             mb.mode.Override(MotionBlurMode.CameraOnly);
             mb.intensity.Override(0.12f);
             mb.quality.Override(MotionBlurQuality.Medium);
-            Add<LensDistortion>().intensity.Override(0f);
-            EditorUtility.SetDirty(profile);
+            Add<LensDistortion>(night).intensity.Override(0f);
+            EditorUtility.SetDirty(night);
 
-            var vgo = new GameObject("GlobalVolume");
-            vgo.transform.SetParent(world, false);
-            var vol = vgo.AddComponent<Volume>();
-            vol.isGlobal = true;
-            vol.priority = 0;
-            vol.sharedProfile = profile;
+            // day: warm, clear, high dynamic range sunlight
+            var day = NewProfile("PostDay");
+            var db = Add<Bloom>(day);
+            db.threshold.Override(1.1f);
+            db.intensity.Override(0.35f);
+            db.scatter.Override(0.65f);
+            db.highQualityFiltering.Override(true);
+            Add<Tonemapping>(day).mode.Override(TonemappingMode.ACES);
+            var dca = Add<ColorAdjustments>(day);
+            dca.postExposure.Override(0.2f);
+            dca.contrast.Override(18f);
+            dca.saturation.Override(16f);
+            var dwb = Add<WhiteBalance>(day);
+            dwb.temperature.Override(6f);
+            var dst = Add<SplitToning>(day);
+            dst.shadows.Override(new Color(0.35f, 0.45f, 0.6f));
+            dst.highlights.Override(new Color(1f, 0.85f, 0.65f));
+            dst.balance.Override(10f);
+            var dvg = Add<Vignette>(day);
+            dvg.intensity.Override(0.2f);
+            dvg.smoothness.Override(0.5f);
+            var dgr = Add<FilmGrain>(day);
+            dgr.type.Override(FilmGrainLookup.Thin1);
+            dgr.intensity.Override(0.06f);
+            var dmb = Add<MotionBlur>(day);
+            dmb.mode.Override(MotionBlurMode.CameraOnly);
+            dmb.intensity.Override(0.12f);
+            dmb.quality.Override(MotionBlurQuality.Medium);
+            Add<LensDistortion>(day).intensity.Override(0f);
+            Add<ChromaticAberration>(day).intensity.Override(0.04f);
+            EditorUtility.SetDirty(day);
+
+            foreach (var (name, profile, weight) in new[] { ("DayVolume", day, 1f), ("NightVolume", night, 0f) })
+            {
+                var vgo = new GameObject(name);
+                vgo.transform.SetParent(world, false);
+                var vol = vgo.AddComponent<Volume>();
+                vol.isGlobal = true;
+                vol.priority = 0;
+                vol.weight = weight;
+                vol.sharedProfile = profile;
+            }
         }
 
         // ------------------------------------------------------------------ player builds
