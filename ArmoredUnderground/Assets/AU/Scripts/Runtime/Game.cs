@@ -12,7 +12,7 @@ namespace AU
     /// <summary>Game flow: title, free roam, race events, results, garage, pause.</summary>
     public class Game : MonoBehaviour
     {
-        public enum State { Title, Roam, EventCard, Race, Results, Garage, Paused }
+        public enum State { Title, Roam, EventCard, Race, Results, Garage, Paused, Duel }
         public State state = State.Title;
         State _beforePause;
 
@@ -24,9 +24,11 @@ namespace AU
         Menus _menus;
         Garage _garage;
         Race _race;
+        Duel _duel;
+        float _duelEndT;
         CityLayout.RouteDef _pendingEvent;
         readonly List<MechController> _mechs = new();
-        readonly List<(Transform t, Vector3 pos, CityLayout.RouteDef def, Color color)> _markers = new();
+        readonly List<(Transform t, Vector3 pos, CityLayout.RouteDef def, CityLayout.DuelDef duel, Color color)> _markers = new();
         float _titleT, _raceEndT;
         bool _autotest;
         public static Vector3 PlayerSpawn => CityLayout.Ground(CityLayout.PlayerSpawn.x, CityLayout.PlayerSpawn.y) + Vector3.up * 0.3f;
@@ -50,7 +52,7 @@ namespace AU
             player.rig.AddCharacterLights();
             player.Damaged += (d, from) => { _chase?.Damage(Mathf.Clamp01(0.25f + d / 500f)); if (from) AudioFX.I?.Play("hit", player.Center, 0.5f, 0.6f); };
             player.StyleEvent += (n, amt) => _hud?.Style($"{n}  +OVERDRIVE");
-            player.Recovered += () => { if (_race == null) { player.Repair(); } };
+            player.Recovered += () => { if (_race == null && _duel == null) { player.Repair(); } };
 
             var cam = Bootstrap.MainCam;
             _chase = cam.gameObject.AddComponent<ChaseCamera>();
@@ -71,7 +73,7 @@ namespace AU
 
             _menus.OnStart = StartGame;
             _menus.OnResume = Resume;
-            _menus.OnRetire = () => { Resume(); EndRace(false); };
+            _menus.OnRetire = () => { Resume(); if (_duel != null) { _duel.playerWon = false; EndDuel(); } else EndRace(false); };
             _menus.OnReset = () => { save = SaveData.Reset(); Resume(); ApplyLoadout(); _hud.Toast("CAREER RESET", new Color(1, 0.3f, 0.25f)); BuildMarkers(); };
             _menus.OnQuit = Application.Quit;
             _menus.OnRace = StartRace;
@@ -115,18 +117,24 @@ namespace AU
         {
             foreach (var m in _markers) if (m.t) Destroy(m.t.gameObject);
             _markers.Clear();
-            AddMarker(RigShopFront, null, UIKit.Amber);
+            AddMarker(RigShopFront, null, null, UIKit.Teal);
             foreach (var d in CityLayout.Routes)
             {
                 bool locked = save.rep < d.repRequired;
                 bool won = save.Result(d.id)?.bestPos == 1;
-                AddMarker(d.Points()[0], d, locked ? new Color(1f, 0.25f, 0.2f) : won ? new Color(0.3f, 1f, 0.4f) : UIKit.Neon);
+                AddMarker(d.Points()[0], d, null, locked ? UIKit.Rival : won ? new Color(0.3f, 1f, 0.4f) : UIKit.Gold);
+            }
+            foreach (var d in CityLayout.Duels)
+            {
+                bool locked = save.rep < d.repRequired;
+                bool won = save.Result(d.id)?.bestPos == 1;
+                AddMarker(CityLayout.Ground(d.registration.x, d.registration.y), null, d, locked ? UIKit.Rival : won ? new Color(0.3f, 1f, 0.4f) : UIKit.Gold);
             }
         }
 
-        void AddMarker(Vector3 pos, CityLayout.RouteDef def, Color color)
+        void AddMarker(Vector3 pos, CityLayout.RouteDef def, CityLayout.DuelDef duel, Color color)
         {
-            var root = new GameObject(def == null ? "GarageMarker" : "EventMarker_" + def.id).transform;
+            var root = new GameObject(def != null ? "EventMarker_" + def.id : duel != null ? "DuelMarker_" + duel.id : "GarageMarker").transform;
             root.position = pos;
             var pillar = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             Destroy(pillar.GetComponent<Collider>());
@@ -134,7 +142,7 @@ namespace AU
             pillar.transform.localPosition = Vector3.up * 70f;
             pillar.transform.localScale = new Vector3(3.5f, 70f, 3.5f);
             var pr = pillar.GetComponent<Renderer>();
-            pr.sharedMaterial = def == null ? GameAssets.I.markerGlow : GameAssets.I.gateBeam;
+            pr.sharedMaterial = def == null && duel == null ? GameAssets.I.markerGlow : GameAssets.I.gateBeam;
             var mpb = new MaterialPropertyBlock(); mpb.SetColor("_Color", color * 0.5f); pr.SetPropertyBlock(mpb);
             var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             Destroy(ring.GetComponent<Collider>());
@@ -147,7 +155,7 @@ namespace AU
             var l = new GameObject("L").AddComponent<Light>();
             l.transform.SetParent(root, false); l.transform.localPosition = Vector3.up * 4;
             l.color = color; l.range = 25; l.intensity = 4; l.shadows = LightShadows.None;
-            _markers.Add((root, pos, def, color));
+            _markers.Add((root, pos, def, duel, color));
         }
 
         // ------------------------------------------------------------------ states
@@ -180,7 +188,7 @@ namespace AU
             _beforePause = state;
             state = State.Paused;
             Time.timeScale = 0;
-            _menus.ShowPause(true, _race != null);
+            _menus.ShowPause(true, _race != null || _duel != null);
             LockCursor(false);
         }
 
@@ -339,10 +347,20 @@ namespace AU
                     float d = Vector2.Distance(new Vector2(m.pos.x, m.pos.z), new Vector2(player.transform.position.x, player.transform.position.z));
                     if (d < 13f)
                     {
-                        prompt = m.def == null ? "[E]  ENTER RIG SHOP" : $"[E]  {m.def.type}  ·  {m.def.name}";
-                        if (PlayerDriver.InteractPressed) { if (m.def == null) OpenGarage(); else OpenEvent(m.def); }
+                        prompt = "near";
+                        if (PlayerDriver.InteractPressed)
+                        {
+                            if (m.def != null) { _pendingEvent = m.def; StartRace(); }
+                            else if (m.duel != null) StartDuel(m.duel);
+                            else OpenGarage();
+                        }
                     }
                 }
+            }
+            if (_duel != null && _duel.state == "done" && state == State.Duel)
+            {
+                _duelEndT -= Time.deltaTime;
+                if (_duelEndT <= 0) EndDuel();
             }
             if (_race != null && _race.state == "done" && state == State.Race)
             {
@@ -358,19 +376,163 @@ namespace AU
             if (state == State.Title || state == State.Garage || !_hud) return;
             var markers = state == State.Roam ? _markers.Select(m => new Hud.Marker { pos = m.pos, color = m.color }).ToList() : null;
             if (Keyboard.current != null && Keyboard.current.mKey.wasPressedThisFrame && (state == State.Roam || state == State.Race)) _hud.ToggleWorldMap();
-            _hud.Tick(player, Bootstrap.MainCam, _chase.yaw, _driver.lockTarget, _race, save.credits, save.rep, PromptText(), markers);
+            var hs = new HudState
+            {
+                mode = _duel != null ? HudMode.Combat : _race != null ? HudMode.Race : HudMode.Explore,
+                player = player, lockT = _driver.lockTarget, cam = Bootstrap.MainCam, race = _race, duel = _duel,
+                credits = save.credits, rep = save.rep, markers = markers,
+                hour = DayNight.I ? DayNight.I.hour : 12f, location = LocationName(),
+            };
+            Objective(hs);
+            hs.interact = state == State.Roam ? NearbyInteraction() : null;
+            _hud.Tick(hs);
         }
 
-        string PromptText()
+        string LocationName()
         {
-            if (state != State.Roam) return null;
+            if (_duel != null) return _duel.def.venue;
+            if (_race != null) return _race.def.name;
+            Vector3 p = player.transform.position;
+            foreach (var v in CityLayout.Venues)
+                if (v.id != "hangar" && v.id != "downtown" && v.id != "bridge" && Vector2.Distance(new Vector2(p.x, p.z), new Vector2(v.pos.x, v.pos.z)) < 260f) return v.name;
+            if (Mathf.Abs(p.z - CityLayout.BridgeZ) < 30f && Mathf.Abs(p.x) < 900f && p.y > 6f) return "CENTRAL BRIDGE";
+            if (CityLayout.CoastDist(p.x, p.z) < 0) return "THE BAY";
+            return CityLayout.DistrictAt(p.x, p.z) switch
+            {
+                CityLayout.District.Hangar => "HANGAR DISTRICT",
+                CityLayout.District.OldTown => "OLD TOWN",
+                CityLayout.District.Downtown => "DOWNTOWN",
+                CityLayout.District.Island => "CHAMPIONSHIP ISLAND",
+                CityLayout.District.Airfield => "FLIGHT CIRCUIT",
+                _ => "THE BAY",
+            };
+        }
+
+        /// <summary>The next thing to do: race gates, the duel opponent, or the next unfinished event.</summary>
+        void Objective(HudState hs)
+        {
+            if (_race != null)
+            {
+                hs.objectiveTitle = _race.state == "done" ? "FINISHED" : "NEXT CHECKPOINT";
+                hs.objectiveText = _race.state == "done" ? "Collect your winnings" : "Pass through the next gate";
+                int n = Mathf.Min(_race.player.next, _race.gates.Count - 1);
+                hs.hasWaypoint = _race.state != "done";
+                hs.waypoint = _race.gates[n];
+                hs.waypointName = n == _race.gates.Count - 1 ? "FINISH" : "CHECKPOINT";
+                return;
+            }
+            if (_duel != null)
+            {
+                hs.objectiveTitle = _duel.state == "done" ? (_duel.playerWon ? "BOUT WON" : "BOUT LOST") : "DESTROY THE OPPONENT";
+                hs.objectiveText = "";
+                hs.hasWaypoint = _duel.rival && _duel.state != "done";
+                if (hs.hasWaypoint) { hs.waypoint = _duel.rival.transform.position; hs.waypointName = _duel.def.rival; }
+                return;
+            }
+            // next unfinished event the player can enter, in career order
+            var order = new List<(string id, string name, string venue, int rep, Vector3 pos, bool duel)>();
+            foreach (var r in CityLayout.Routes) order.Add((r.id, r.name, r.type == "SPRINT" ? "the sprint start" : "the circuit grid", r.repRequired, r.Points()[0], false));
+            foreach (var d in CityLayout.Duels) order.Add((d.id, d.name, d.venue.ToLowerInvariant(), d.repRequired, CityLayout.Ground(d.registration.x, d.registration.y), true));
+            order.Sort((a, b) => a.rep.CompareTo(b.rep));
+            foreach (var o in order)
+            {
+                if (save.rep < o.rep || save.Result(o.id)?.bestPos == 1) continue;
+                hs.objectiveTitle = o.duel ? "NEXT BOUT" : "NEXT RACE";
+                hs.objectiveText = o.duel ? $"Reach the {UpperFirst(o.venue)} registration gate" : $"{UpperFirst(o.name.ToLowerInvariant())}: reach {o.venue}";
+                hs.hasWaypoint = true; hs.waypoint = o.pos; hs.waypointName = o.name;
+                return;
+            }
+            hs.objectiveTitle = "FREE ROAM";
+            hs.objectiveText = "Upgrade your frame at the workshop";
+            hs.hasWaypoint = true; hs.waypoint = RigShopFront; hs.waypointName = "WORKSHOP";
+        }
+
+        static string UpperFirst(string s)
+        {
+            var words = s.Split(' ');
+            for (int i = 0; i < words.Length; i++) if (words[i].Length > 0 && words[i] != "the") words[i] = char.ToUpperInvariant(words[i][0]) + words[i].Substring(1);
+            return string.Join(" ", words);
+        }
+
+        Interaction NearbyInteraction()
+        {
             foreach (var m in _markers)
             {
                 if (!m.t) continue;
                 float d = Vector2.Distance(new Vector2(m.pos.x, m.pos.z), new Vector2(player.transform.position.x, player.transform.position.z));
-                if (d < 13f) return m.def == null ? "[E]  ENTER RIG SHOP" : $"[E]  {m.def.type}  ·  {m.def.name}";
+                if (d >= 13f) continue;
+                if (m.def != null)
+                {
+                    var r = m.def;
+                    return new Interaction
+                    {
+                        title = r.name,
+                        line1 = $"{r.type}{(r.type == "CIRCUIT" ? $"  ·  {r.laps} LAPS" : "")}  ·  {r.rivals + 1} RACERS",
+                        line2 = $"REWARD   <color=#FAB833><b>{r.payout[0]:N0} CR</b></color>",
+                        action = "ENTER EVENT", sub = r.blurb, locked = save.rep < r.repRequired,
+                    };
+                }
+                if (m.duel != null)
+                {
+                    var q = m.duel;
+                    return new Interaction
+                    {
+                        title = q.name, line1 = q.subtitle,
+                        line2 = $"REWARD   <color=#FAB833><b>{q.reward:N0} CR</b></color>",
+                        action = "ENTER EVENT", sub = save.rep < q.repRequired ? $"Needs {q.repRequired} REP  ·  you have {save.rep}" : q.blurb, locked = save.rep < q.repRequired,
+                    };
+                }
+                return new Interaction { title = "WORKSHOP TERMINAL", line1 = "RIG SHOP  ·  HANGAR 03", line2 = "", action = "INTERACT", sub = "Inspect loadout and upgrades" };
             }
             return null;
+        }
+
+        // ------------------------------------------------------------------ duels
+        void StartDuel(CityLayout.DuelDef d)
+        {
+            if (save.rep < d.repRequired) { _hud.Toast($"NEEDS {d.repRequired} REP", UIKit.Rival); return; }
+            Combat.I.ClearAll();
+            foreach (var m in _markers) m.t.gameObject.SetActive(false);
+            if (_hud.WorldMapOpen) _hud.ToggleWorldMap();
+            _duel = Duel.Create(d, player, (n, l, s, p) => SpawnMech(n, l, s, p));
+            _duel.Beep += n => AudioFX.I?.UI(n == 0 ? "beephi" : "beep", 0.7f);
+            _duel.Finished += () =>
+            {
+                _duelEndT = 3.5f;
+                _hud.Toast(_duel.playerWon ? $"{d.name} WON  ·  +{d.reward:N0} CR" : "BOUT LOST", _duel.playerWon ? UIKit.Gold : UIKit.Rival, 3.5f);
+                _hud.Comms(_duel.playerWon ? "That's a seeding. On to the finals." : "Not today. Back to the workshop.");
+                if (_duel.rival && _duel.rival.IsDown) Combat.I.Explode(_duel.rival.Center, 0, 1, 0, null);
+            };
+            _chase.SnapBehind();
+            _hud.Comms("Systems green. Let's give them a show.");
+            state = State.Duel;
+            _driver.inputEnabled = true;
+            LockCursor(true);
+        }
+
+        void EndDuel()
+        {
+            if (_duel == null) return;
+            var d = _duel.def;
+            if (_duel.playerWon)
+            {
+                save.credits += d.reward;
+                save.rep += d.repGain;
+                var prev = save.Result(d.id);
+                if (prev == null) save.results.Add(new EventResult { id = d.id, bestPos = 1, bestTime = d.timeLimit - _duel.timeLeft });
+                else prev.bestPos = 1;
+                save.Save();
+            }
+            if (_duel.rival) _mechs.Remove(_duel.rival);
+            _duel.Teardown();
+            _duel = null;
+            Combat.I.ClearAll();
+            BuildMarkers();
+            player.Repair();
+            player.Teleport(CityLayout.Ground(d.registration.x, d.registration.y - 14f) + Vector3.up * 0.3f, 180f);
+            _chase.SnapBehind();
+            state = State.Roam;
+            _driver.inputEnabled = true;
         }
 
         // ------------------------------------------------------------------ automated playtest
@@ -490,6 +652,37 @@ namespace AU
             yield return new WaitForSeconds(3f);
             yield return CaptureTour.Shot("09_results", 2);
             Destroy(auto);
+            ContinueAfterResults();
+            yield return new WaitForSeconds(0.5f);
+
+            // HUD cards at the qualifier registration and the workshop
+            foreach (var (n, at, yaw) in new[] { ("hud_enter_event", CityLayout.Duels[0].registration + new Vector2(0, -9), 0f), ("hud_workshop", CityLayout.RigShop + new Vector2(3, -12), 0f) })
+            {
+                player.Teleport(CityLayout.Ground(at.x, at.y) + Vector3.up * 0.3f, yaw);
+                _chase.followMechYaw = false; _chase.yaw = yaw; _chase.SnapBehind();
+                yield return CaptureTour.Shot(n, 40);
+            }
+
+            // arena duel, the player's frame flown by the duel AI
+            StartDuel(CityLayout.Duels[0]);
+            _driver.enabled = false;
+            var pilot = player.gameObject.AddComponent<DuelAI>();
+            var duel = _duel;
+            pilot.Init(player, duel.rival, 1.25f, () => duel != null && duel.state == "fight");
+            _chase.followMechYaw = true;
+            yield return new WaitForSeconds(2f);
+            yield return CaptureTour.Shot("10_duel_countdown", 1);
+            float dt2 = 0; int dshot = 0;
+            while (_duel != null && _duel.state != "done" && dt2 < 135f)
+            {
+                dt2 += Time.deltaTime;
+                if (dshot < 3 && dt2 > 6f + dshot * 10f) { yield return CaptureTour.Shot($"11_duel_{dshot}", 1); dshot++; }
+                yield return null;
+            }
+            Debug.Log($"[AutoTest] duel state={_duel?.state} won={_duel?.playerWon} me={_duel?.PlayerPct:0.00} rival={_duel?.RivalPct:0.00}");
+            yield return new WaitForSeconds(1f);
+            yield return CaptureTour.Shot("12_duel_result", 1);
+            Destroy(pilot);
             Application.Quit();
         }
     }

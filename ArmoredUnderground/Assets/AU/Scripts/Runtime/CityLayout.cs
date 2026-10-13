@@ -320,6 +320,55 @@ namespace AU
             AddEdge(r0, r1, 60, RoadKind.Runway);
         }
 
+        public static int NearestNode(Vector2 p)
+        {
+            int best = 0; float bd = float.MaxValue;
+            for (int i = 0; i < Nodes.Count; i++)
+            {
+                float d = (Nodes[i].p - p).sqrMagnitude;
+                if (d < bd) { bd = d; best = i; }
+            }
+            return best;
+        }
+
+        /// <summary>Shortest drive along the road network (A*), as points from 'from' to 'to'.</summary>
+        public static List<Vector2> Route(Vector2 from, Vector2 to)
+        {
+            int s = NearestNode(from), g = NearestNode(to);
+            var dist = new float[Nodes.Count];
+            var prev = new int[Nodes.Count];
+            var done = new bool[Nodes.Count];
+            for (int i = 0; i < dist.Length; i++) { dist[i] = float.MaxValue; prev[i] = -1; }
+            dist[s] = 0;
+            var open = new List<int> { s };
+            while (open.Count > 0)
+            {
+                int bi = 0; float bf = float.MaxValue;
+                for (int i = 0; i < open.Count; i++)
+                {
+                    float f = dist[open[i]] + (Nodes[open[i]].p - Nodes[g].p).magnitude;
+                    if (f < bf) { bf = f; bi = i; }
+                }
+                int u = open[bi]; open.RemoveAt(bi);
+                if (u == g) break;
+                if (done[u]) continue;
+                done[u] = true;
+                foreach (int ei in Nodes[u].edges)
+                {
+                    var e = Edges[ei];
+                    if (e.kind == RoadKind.Runway) continue;
+                    int v = e.a == u ? e.b : e.a;
+                    float nd = dist[u] + (Nodes[u].p - Nodes[v].p).magnitude;
+                    if (nd < dist[v]) { dist[v] = nd; prev[v] = u; if (!open.Contains(v)) open.Add(v); }
+                }
+            }
+            var path = new List<Vector2> { to };
+            for (int n = g; n >= 0; n = prev[n]) { path.Add(Nodes[n].p); if (n == s) break; }
+            path.Add(from);
+            path.Reverse();
+            return path;
+        }
+
         public static bool IsElevated(Edge e) => e.kind == RoadKind.Ramp || e.kind == RoadKind.Bridge || e.kind == RoadKind.Causeway;
 
         /// <summary>Height of an elevated road at a point along an edge (ramps interpolate).</summary>
@@ -372,6 +421,33 @@ namespace AU
                 blurb = "Two laps through the Downtown towers and around the Capitol.",
                 payout = new[] { 8000, 4000, 2000, 700 }, repGain = new[] { 6, 3, 2, 0 },
                 nodes = new Vector2[] { new(1150, -250), new(1150, 650), new(1750, 650), new(1750, 200), new(1450, 200), new(1450, -250) },
+            },
+        };
+
+        /// <summary>1 vs 1 bouts inside the arenas. Registration is the marker outside the gate.</summary>
+        public class DuelDef
+        {
+            public string id, name, venue, subtitle, blurb, rival;
+            public int reward, repGain, repRequired;
+            public float skill, timeLimit = 120f;
+            public Vector2 field;   // half extents of the arena floor
+            public Vector2 registration, arena;
+            public float arenaFieldZ;   // half depth of the field (spawn spacing)
+        }
+
+        public static readonly DuelDef[] Duels =
+        {
+            new DuelDef {
+                id = "qualifier", name = "QUALIFIER", venue = "GROUND ARENA", subtitle = "MECH ONLY · 1 vs 1", rival = "VANTA",
+                blurb = "Win a bout in the hills to earn a seeding for Championship Week.",
+                reward = 800, repGain = 3, repRequired = 0, skill = 0.85f,
+                registration = new Vector2(-1510, 1092), arena = new Vector2(-1510, 1250), arenaFieldZ = 50, field = new Vector2(92, 70),
+            },
+            new DuelDef {
+                id = "grandfinal", name = "GRAND FINAL", venue = "CHAMPIONSHIP ARENA", subtitle = "MECH ONLY · 1 vs 1", rival = "IRONCLAD",
+                blurb = "The Mech Grand Finals. One bout, the whole bay watching.",
+                reward = 12000, repGain = 10, repRequired = 8, skill = 1.15f,
+                registration = new Vector2(1302, -1292), arena = new Vector2(1500, -1300), arenaFieldZ = 65, field = new Vector2(112, 92),
             },
         };
 
