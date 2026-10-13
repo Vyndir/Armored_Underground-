@@ -266,7 +266,7 @@ namespace AU.EditorTools
                 target = BuildTarget.StandaloneWindows64,
                 options = BuildOptions.None,
             };
-            PlayerSettings.productName = "Armored Underground";
+            PlayerSettings.productName = "Iron Ascendant";
             PlayerSettings.companyName = "Vyndir";
             PlayerSettings.defaultScreenWidth = 1600;
             PlayerSettings.defaultScreenHeight = 900;

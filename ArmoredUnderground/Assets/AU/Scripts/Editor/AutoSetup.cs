@@ -18,7 +18,7 @@ namespace AU.EditorTools
             {
                 if (!File.Exists(SceneBuilder.ScenePath))
                 {
-                    if (EditorUtility.DisplayDialog("Armored Underground", "Generate the Kessel Ward district and assets now? (takes a minute or two)", "Generate", "Later"))
+                    if (EditorUtility.DisplayDialog("Iron Ascendant", "Generate the bay city and assets now? (takes a minute or two)", "Generate", "Later"))
                     {
                         SceneBuilder.BuildAll();
                         EditorSceneManager.OpenScene(SceneBuilder.ScenePath);

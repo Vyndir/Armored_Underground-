@@ -28,9 +28,9 @@ namespace AU
             title = Stretch(root, "Title").gameObject;
             var shade = Img(title.transform, "Shade", new Vector2(0, 0), new Vector2(0, 0), Vector2.zero, new Vector2(900, 1080), new Color(0, 0, 0, 0.55f));
             var t1 = Txt(title.transform, "T1", new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(110, 230), new Vector2(900, 120), 110, TextAnchor.MiddleLeft, Ink, FontStyle.BoldAndItalic);
-            t1.text = "ARMORED";
+            t1.text = "IRON";
             var t2 = Txt(title.transform, "T2", new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(110, 120), new Vector2(1100, 120), 110, TextAnchor.MiddleLeft, Neon, FontStyle.BoldAndItalic);
-            t2.text = "UNDERGROUND";
+            t2.text = "ASCENDANT";
             Glow(t2, Neon, 4);
             Txt(title.transform, "Tag", new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(116, 40), new Vector2(900, 40), 26, TextAnchor.MiddleLeft, Dim, FontStyle.Italic).text = "The championship comes to the bay. After midnight, the streets are yours.";
             Btn(title.transform, "IGNITE", new Vector2(0, 0.5f), new Vector2(316, -50), new Vector2(400, 64), () => OnStart?.Invoke(), Neon, 28);

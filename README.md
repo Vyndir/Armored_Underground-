@@ -1,4 +1,4 @@
-# Armored Underground
+# Iron Ascendant
 
 Night-city street racing in armored mechs. An original Unity 6 game that fuses
 underground street racing (rain-soaked neon streets, rival crews, race events,
