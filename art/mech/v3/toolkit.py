@@ -64,7 +64,8 @@ def _link(name, bm, mclass, bone, bevel=0.0, bevel_segs=2, angle=32, marker=None
     return obj
 
 
-AUTO_DETAIL = {'on': True, 'chance': 0.28, 'max': 3}
+AUTO_DETAIL = {'on': True, 'chance': 0.4, 'max': 4}
+PRE_FINISH = {}   # part id -> callable adding extra detail just before the part is finished
 BOOL_SOLVER = ['MANIFOLD']
 
 
@@ -451,6 +452,8 @@ def finish(rig):
     """Apply modifiers, join per (bone, marker), weight to bone, name P_<part>__<bone|marker>.
     Material slots follow MCLASS; each face's slot = its mclass."""
     pid = STATE['part']
+    if pid in PRE_FINISH:
+        PRE_FINISH[pid]()
     groups = {}
     for obj, bone, marker in STATE['objs']:
         groups.setdefault((bone, marker), []).append(obj)

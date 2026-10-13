@@ -28,6 +28,7 @@ static func build(root: Node3D, art: Dictionary) -> Dictionary:
 	info["workers"] = workers(root)
 	yard(root)
 	annex(root)
+	HangarDetail.build(root)
 	info["terminal"] = Vector3(-92.0, 0.0, -56.0)
 	return info
 
@@ -58,7 +59,7 @@ static func shell(root: Node3D, art: Dictionary) -> void:
 		g.box(Mats.lamp(), Vector3(X1 + 3.2, Site.DOOR_H - 0.62, z), Vector3(1.0, 0.05, 1.4))
 	# roller door rolled up inside, its bottom bar just visible
 	g.cylinder(Mats.dark(), Vector3(X1 - 2.0, Site.DOOR_H - 1.6, Site.DOOR_Z0), Vector3(X1 - 2.0, Site.DOOR_H - 1.6, Site.DOOR_Z1), 1.5, 16)
-	g.box(Mats.yellow(), Vector3(X1 - 0.9, Site.DOOR_H - 0.4, (Site.DOOR_Z0 + Site.DOOR_Z1) * 0.5), Vector3(0.4, 0.5, Site.DOOR_Z1 - Site.DOOR_Z0))
+	g.box(Mats.yellow(), Vector3(X1 - 0.9, Site.DOOR_H - 2.15, (Site.DOOR_Z0 + Site.DOOR_Z1) * 0.5), Vector3(0.4, 0.5, Site.DOOR_Z1 - Site.DOOR_Z0))
 	# external steel pilasters
 	for x in range(int(X0) + 6, int(X1), 11):
 		for zz: float in [Z0 - 0.35, Z1 + 0.35]:
@@ -294,6 +295,21 @@ static func gantry(root: Node3D, c: Vector3, open_front: bool) -> Dictionary:
 		arm_g.beam(yel, Vector3(tx, 7.0, tz - side * 1.8), Vector3(c.x, 6.4, c.z + side * 2.4), 0.25)
 		arm_g.box(Mats.dark(), Vector3(c.x, 6.4, c.z + side * 2.4), Vector3(0.6, 0.6, 0.6))
 		Geo.box_collider(root, Vector3(tx, 6.5, tz), Vector3(5.4, 13, 3.6))
+		# deck kick plates, under-deck work lights, a tower-top beacon and a ground control pedestal
+		for ly: float in [3.6, 7.2, 10.8]:
+			for pz: float in [-1.75, 1.75]:
+				g.box(Mats.dark(), Vector3(tx, ly + 0.17, tz + pz), Vector3(5.4, 0.15, 0.04))
+			g.box(Mats.lamp(), Vector3(tx + 1.8, ly - 0.14, tz - side * 1.5), Vector3(1.2, 0.05, 0.18))
+		g.box(Mats.dark(), Vector3(tx + 2.5, 13.15, tz - side * 1.6), Vector3(0.3, 0.3, 0.3))
+		g.box(Mats.glow("GantryBeacon", Color(1.0, 0.55, 0.1), 6.0), Vector3(tx + 2.5, 13.45, tz - side * 1.6), Vector3(0.22, 0.3, 0.22))
+		var ped := Vector3(tx + 3.4, 0, tz - side * 2.4)
+		g.box(Mats.painted("PedestalGrey", Color(0.5, 0.52, 0.52), 0.5, 0.4), ped + Vector3(0, 0.6, 0), Vector3(0.7, 1.2, 0.6))
+		g.box(Mats.dark(), ped + Vector3(0, 1.32, 0), Vector3(0.75, 0.25, 0.65), Basis(Vector3.FORWARD, 0.35))
+		g.box(Mats.glow("PedestalScreen", Color(0.2, 0.8, 1.0), 2.0), ped + Vector3(0.12, 1.36, 0), Vector3(0.4, 0.02, 0.45), Basis(Vector3.FORWARD, 0.35))
+		g.box(Mats.hazard(), ped + Vector3(0, 0.08, 0), Vector3(0.9, 0.16, 0.8))
+		# hose reel on the tower leg
+		g.cylinder(Mats.orange(), Vector3(tx - 2.5, 2.0, tz + side * 1.9), Vector3(tx - 2.5, 2.0, tz + side * 2.3), 0.6, 14)
+		g.cylinder(Mats.rubber(), Vector3(tx - 2.5, 2.0, tz + side * 1.95), Vector3(tx - 2.5, 2.0, tz + side * 2.25), 0.45, 14)
 	# rear walkway joining the towers at the top deck
 	g.box(grate, Vector3(c.x - 4.2, 10.8, c.z), Vector3(2.0, 0.2, 15.0))
 	g.beam(yel, Vector3(c.x - 5.2, 11.9, c.z - 7.5), Vector3(c.x - 5.2, 11.9, c.z + 7.5), 0.07)

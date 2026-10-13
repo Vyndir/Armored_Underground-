@@ -4,10 +4,12 @@ blender --background --factory-startup --python art/mech/v3/build.py -- <out> [-
 """
 import bpy, os, sys
 sys.path.insert(0, os.path.dirname(__file__))
-for m in ('toolkit', 'common', 'parts_default', 'parts_extra', 'render', 'bake'):
+for m in ('toolkit', 'common', 'parts_default', 'parts_extra', 'parts_detail', 'render', 'bake'):
     sys.modules.pop(m, None)
 import common, render
 from parts_default import DEFAULT
+if '--no-detail' not in sys.argv:
+    import parts_detail  # registers the secondary detail pass on the default loadout
 try:
     from parts_extra import EXTRA
 except ImportError:
