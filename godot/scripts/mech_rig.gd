@@ -20,6 +20,7 @@ var _boost_glow := 0.0
 var _flames: Array[MeshInstance3D] = []
 var _boost_light: OmniLight3D
 var _surface_mats: Array[ShaderMaterial] = []
+var _glow_mat: StandardMaterial3D
 
 const BONES := ["pelvis", "spine", "chest", "head", "booster", "shoulder.L", "upperarm.L", "forearm.L", "hand.L",
 	"shoulder.R", "upperarm.R", "forearm.R", "hand.R", "thigh.L", "shin.L", "foot.L", "thigh.R", "shin.R", "foot.R"]
@@ -58,6 +59,7 @@ func setup(paint: Color, accent: Color, glow: Color) -> void:
 				mat = mats[part]
 			elif nm.begins_with("MC_glow"):
 				mat = Mats.glow("MechGlow%s" % glow.to_html(), glow, 4.0)
+				_glow_mat = mat
 			elif nm.begins_with("MC_thrust"):
 				mat = Mats.glow("MechThrust", Color(0.4, 0.8, 1.0), 2.0)
 			elif nm.begins_with("MC_glass"):
@@ -88,6 +90,12 @@ func setup(paint: Color, accent: Color, glow: Color) -> void:
 	if _idx.has("pelvis"):
 		_pelvis_rest = skel.get_bone_rest(_idx["pelvis"]).origin
 	_build_thrusters(glow)
+
+## Power level of the frame's lights, 0 (cold, in the clamps) to 1.
+func set_power(p: float) -> void:
+	if _glow_mat:
+		_glow_mat.emission_energy_multiplier = 4.0 * p
+		_glow_mat.albedo_color = _glow_mat.emission * (0.2 + 0.8 * p)
 
 func set_wet(w: float) -> void:
 	for m in _surface_mats:

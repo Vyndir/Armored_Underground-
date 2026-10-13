@@ -17,20 +17,39 @@ uniform float refraction = 0.035;
 uniform float wave_scale = 0.045;
 uniform float wave_speed = 0.022;
 uniform float normal_strength = 0.55;
-uniform float swell_height = 0.12;
+uniform float swell_height = 0.3;
 uniform float foam_width = 0.9;
 uniform vec3 foam_color : source_color = vec3(0.92, 0.96, 0.97);
 
 varying vec3 world_pos;
 
-float swell(vec2 p, float t) {
-	return sin(p.x * 0.055 + t * 0.8) * 0.6 + sin(p.y * 0.07 - t * 0.6) * 0.5 + sin((p.x + p.y) * 0.12 + t * 1.3) * 0.25;
+// Sum of directional swells rolling in from the bay; returns height and gradient.
+vec3 swell(vec2 p, float t) {
+	vec4 dirs[4] = { vec4(0.94, -0.34, 0.045, 0.9), vec4(0.7, 0.71, 0.07, 1.1), vec4(-0.2, 0.98, 0.11, 1.5), vec4(0.99, 0.1, 0.19, 2.1) };
+	float amps[4] = { 0.7, 0.45, 0.25, 0.12 };
+	float h = 0.0;
+	vec2 g = vec2(0.0);
+	for (int i = 0; i < 4; i++) {
+		vec2 d = normalize(dirs[i].xy);
+		float k = dirs[i].z;
+		float ph = dot(d, p) * k + t * dirs[i].w;
+		// sharpened crests, flatter troughs
+		float s = sin(ph) * 0.5 + 0.5;
+		h += (pow(s, 1.6) * 2.0 - 1.0) * amps[i];
+		g += d * k * amps[i] * 1.6 * pow(max(s, 1e-3), 0.6) * cos(ph);
+	}
+	return vec3(h, g);
 }
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	float t = TIME;
-	VERTEX.y += swell(world_pos.xz, t) * swell_height;
+	// calm in the slipway and against the quay, fuller swell out in the bay
+	float open_water = smoothstep(40.0, 140.0, world_pos.x);
+	float amp = swell_height * mix(0.45, 1.0, open_water);
+	vec3 sw = swell(world_pos.xz, t);
+	VERTEX.y += sw.x * amp;
+	NORMAL = normalize(NORMAL + (inverse(mat3(MODEL_MATRIX)) * vec3(-sw.y * amp, 0.0, -sw.z * amp)));
 }
 
 void fragment() {

@@ -8,7 +8,12 @@ uniform vec3 horizon : source_color = vec3(0.72, 0.83, 0.95);
 uniform vec3 ground : source_color = vec3(0.42, 0.47, 0.5);
 uniform float cloud_cover = 0.5;
 
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+// sin-free hash: stays stable at the large coordinates of the high octaves
+float hash(vec2 p) {
+	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
+}
 float noise(vec2 p) {
 	vec2 i = floor(p), f = fract(p);
 	f = f * f * (3.0 - 2.0 * f);
@@ -16,7 +21,8 @@ float noise(vec2 p) {
 }
 float fbm(vec2 p) {
 	float s = 0.0, a = 0.5;
-	for (int k = 0; k < 6; k++) { s += a * noise(p); p = p * 2.02 + 17.3; a *= 0.5; }
+	mat2 r = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8));
+	for (int k = 0; k < 6; k++) { s += a * noise(p); p = r * p * 2.02 + vec2(3.1, 1.7); a *= 0.5; }
 	return s;
 }
 

@@ -118,6 +118,16 @@ var _complete: Control
 var _fade: ColorRect
 var _interact: Chamfer
 var _interact_label: Label
+var _hud_items: Array = []
+var _bars: Array[ColorRect] = []
+var _title: Label
+var _title_sub: Label
+var _sub_panel: Chamfer
+var _sub_speaker: Label
+var _sub_text: Label
+var _sub_t := 0.0
+var _skip: Label
+var _boot_log: Label
 
 func _ready() -> void:
 	layer = 10
@@ -132,6 +142,11 @@ func _ready() -> void:
 	_build_prompt(root)
 	_build_waypoint(root)
 	_build_overlays(root)
+	_hud_items = []
+	for c in root.get_children():
+		if c != _fade and c != _help and c != _pause and c != _complete:
+			_hud_items.append(c)
+	_build_cinema(root)
 
 ## Anchor a control to a preset corner/edge and place it by offsets from that anchor.
 func _anchor(c: Control, preset: int, pos: Vector2, size: Vector2) -> void:
@@ -496,3 +511,99 @@ func _input(e: InputEvent) -> void:
 		device_changed.emit()
 
 signal device_changed
+
+
+# ------------------------------------------------------------------ cinematic layer
+func _build_cinema(root: Control) -> void:
+	_interact.visible = false
+	for top in [true, false]:
+		var b := ColorRect.new()
+		b.color = Color.BLACK
+		b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(b)
+		_anchor(b, Control.PRESET_TOP_WIDE if top else Control.PRESET_BOTTOM_WIDE, Vector2(0, 0 if top else -110), Vector2(0, 110))
+		b.visible = false
+		_bars.append(b)
+	_title = _label(root, "IRON ASCENDANT", 64, INK)
+	_anchor(_title, Control.PRESET_CENTER, Vector2(-600, -90), Vector2(1200, 80))
+	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title.modulate.a = 0.0
+	_title_sub = _label(root, "WATERFRONT TRAINING HANGAR  ·  10:42 AM", 20, GOLD)
+	_anchor(_title_sub, Control.PRESET_CENTER, Vector2(-600, -6), Vector2(1200, 30))
+	_title_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title_sub.modulate.a = 0.0
+	_sub_panel = _panel(root, Vector2.ZERO, Vector2(760, 70))
+	_anchor(_sub_panel, Control.PRESET_CENTER_BOTTOM, Vector2(-380, -200), Vector2(760, 70))
+	_sub_speaker = _label(_sub_panel, "", 15, GOLD)
+	_sub_speaker.position = Vector2(20, 8)
+	_sub_text = _label(_sub_panel, "", 19, INK, false)
+	_sub_text.position = Vector2(20, 30)
+	_sub_panel.visible = false
+	_skip = _label(root, "", 14, Color(1, 1, 1, 0.6), false)
+	_anchor(_skip, Control.PRESET_BOTTOM_RIGHT, Vector2(-300, -80), Vector2(270, 20))
+	_skip.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_boot_log = _label(root, "", 15, TEAL, false)
+	_anchor(_boot_log, Control.PRESET_CENTER_LEFT, Vector2(60, -120), Vector2(520, 260))
+	_boot_log.visible = false
+
+var _shown := {}
+
+func set_cinematic(on: bool) -> void:
+	for b in _bars:
+		b.visible = on
+	for c in _hud_items:
+		var ci := c as CanvasItem
+		if on:
+			_shown[ci] = ci.visible
+			ci.visible = false
+		else:
+			ci.visible = _shown.get(ci, true)
+	_skip.text = ("HOLD  %s  TO SKIP" % ("A" if gamepad else "SPACE")) if on else ""
+
+func title_card(show: bool, t := 1.5) -> void:
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(_title, "modulate:a", 1.0 if show else 0.0, t)
+	tw.tween_property(_title_sub, "modulate:a", 1.0 if show else 0.0, t)
+
+func subtitle(speaker: String, text: String, dur := 4.0) -> void:
+	_sub_speaker.text = speaker
+	_sub_text.text = text
+	var w := maxf(420.0, Tex.font(false).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x + 44.0)
+	_anchor(_sub_panel, Control.PRESET_CENTER_BOTTOM, Vector2(-w * 0.5, -200 if _bars[0].visible else -210), Vector2(w, 70))
+	_sub_panel.visible = true
+	_sub_t = dur
+	if Sfx.I:
+		Sfx.I.play("radio", -8.0)
+
+## Bring the HUD up panel by panel with a scrolling boot log.
+func boot(lines: Array) -> void:
+	for c in _hud_items:
+		(c as CanvasItem).modulate.a = 0.0
+	_boot_log.visible = true
+	_boot_log.text = ""
+	for l in lines:
+		_boot_log.text += str(l) + "
+"
+		if Sfx.I:
+			Sfx.I.play("blip", -14.0, 1.0 + randf() * 0.3)
+		await get_tree().create_timer(0.16).timeout
+	var k := 0
+	for c in _hud_items:
+		var tw := create_tween()
+		tw.tween_interval(k * 0.08)
+		tw.tween_property(c, "modulate:a", 1.0, 0.35)
+		k += 1
+	if Sfx.I:
+		Sfx.I.play("boot", -8.0)
+	await get_tree().create_timer(1.2).timeout
+	var tw2 := create_tween()
+	tw2.tween_property(_boot_log, "modulate:a", 0.0, 0.8)
+	await tw2.finished
+	_boot_log.visible = false
+	_boot_log.modulate.a = 1.0
+
+func _process(dt: float) -> void:
+	if _sub_t > 0.0:
+		_sub_t -= dt
+		if _sub_t <= 0.0:
+			_sub_panel.visible = false

@@ -169,3 +169,22 @@ static func screen(c: Control, title: String, lines: Array) -> void:
 		c.draw_string(f, Vector2(16, y), str(l), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(0.75, 0.9, 0.95))
 		y += 28.0
 	mech_silhouette(c, Rect2(Vector2(s.x - 150, 30), Vector2(120, 180)), Color(0.2, 0.85, 0.8, 0.5))
+
+static func flag(c: Control) -> void:
+	var s := c.size
+	c.draw_rect(Rect2(Vector2.ZERO, s), NAVY)
+	c.draw_colored_polygon(PackedVector2Array([Vector2(0, s.y * 0.62), Vector2(s.x, s.y * 0.18), Vector2(s.x, s.y * 0.36), Vector2(0, s.y * 0.8)]), ORANGE)
+	c.draw_colored_polygon(PackedVector2Array([Vector2(0, s.y * 0.82), Vector2(s.x, s.y * 0.38), Vector2(s.x, s.y * 0.44), Vector2(0, s.y * 0.88)]), CREAM)
+	chevron(c, Vector2(s.x * 0.28, s.y * 0.36), s.y * 0.42, CREAM)
+
+static func road_sign(c: Control, title: String, sub: String, bg: Color) -> void:
+	var s := c.size
+	c.draw_rect(Rect2(Vector2.ZERO, s), CREAM)
+	c.draw_rect(Rect2(Vector2(10, 10), s - Vector2(20, 20)), bg)
+	var f := paint_font()
+	var fs := int(s.y * 0.22)
+	var tw := f.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	c.draw_string(f, Vector2((s.x - tw) * 0.5, s.y * 0.5), title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, CREAM)
+	var fs2 := int(s.y * 0.11)
+	var tw2 := f.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2).x
+	c.draw_string(f, Vector2((s.x - tw2) * 0.5, s.y * 0.75), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2, CREAM.darkened(0.15))

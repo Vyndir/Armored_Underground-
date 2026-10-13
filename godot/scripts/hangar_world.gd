@@ -7,19 +7,19 @@ extends Node3D
 ## automatically, saving screenshots.
 
 const STEPS := [
-	{"title": "SYSTEMS CHECK", "text": "Look around the bay to calibrate the head cameras.",
+	{"title": "SYSTEMS CHECK", "radio": "Give the head cameras a once-over. Look around the bay.", "text": "Look around the bay to calibrate the head cameras.",
 		"prompts": [[["Mouse"], ["R-Stick"], "LOOK"]]},
-	{"title": "WALK OUT", "text": "Walk KESTREL out of the hangar to training pad 1.",
+	{"title": "WALK OUT", "radio": "Good. Walk her out onto the apron. Pad one, straight ahead.", "text": "Walk KESTREL out of the hangar to training pad 1.",
 		"prompts": [[["W", "A", "S", "D"], ["L-Stick"], "MOVE"], [["C"], ["R3"], "RECENTER CAMERA"]], "pad": Vector3(-58, 0, -74), "name": "PAD 1"},
-	{"title": "BOOST", "text": "Hold boost and run the north apron to pad 2.",
+	{"title": "BOOST", "radio": "Now open her up. Hold boost all the way down the north apron.", "text": "Hold boost and run the north apron to pad 2.",
 		"prompts": [[["Shift"], ["RB"], "BOOST (HOLD)"], [["W"], ["L-Stick"], "MOVE"]], "pad": Vector3(-2, 0, -138), "name": "PAD 2"},
-	{"title": "QUICK BOOST", "text": "Dash three times. Quick boosts dodge fire but cost energy.",
+	{"title": "QUICK BOOST", "radio": "Quick boosts are your dodge. Three dashes, any direction.", "text": "Dash three times. Quick boosts dodge fire but cost energy.",
 		"prompts": [[["Q"], ["B"], "QUICK BOOST"], [["A", "D"], ["L-Stick"], "DIRECTION"]]},
-	{"title": "JUMP & HOVER", "text": "Reach pad 3, then jump and hold to hover for two seconds.",
+	{"title": "JUMP & HOVER", "radio": "Pad three's by the quay. Jump and hold to hover.", "text": "Reach pad 3, then jump and hold to hover for two seconds.",
 		"prompts": [[["Space"], ["A"], "JUMP"], [["Space"], ["A"], "HOLD TO HOVER"]], "pad": Vector3(18, 0, -60), "name": "PAD 3"},
-	{"title": "WADE", "text": "Take the slipway down into the shallows to the buoy line.",
+	{"title": "WADE", "radio": "Take the slipway into the shallows. She'll feel heavy in the water.", "text": "Take the slipway down into the shallows to the buoy line.",
 		"prompts": [[["W"], ["L-Stick"], "MOVE"], [["Shift"], ["RB"], "BOOST OUT OF THE WATER"]], "pad": Vector3(84, -5, 33), "name": "BUOY LINE"},
-	{"title": "REPORT IN", "text": "Return to the hangar and log the run at the workshop terminal.",
+	{"title": "REPORT IN", "radio": "Nice run. Bring her home and log it at the workshop terminal.", "text": "Return to the hangar and log the run at the workshop terminal.",
 		"prompts": [[["E"], ["Y"], "INTERACT"]], "pad": Vector3(-92, 0, -56), "name": "WORKSHOP TERMINAL"},
 ]
 
@@ -37,6 +37,9 @@ var _splash: GPUParticles3D
 var _paused := false
 var _info := {}
 var _sim_interact := false
+var _intro: Intro
+var _exhaust: GPUParticles3D
+var _was_boost := false
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -44,6 +47,10 @@ func _ready() -> void:
 	if ai >= 0 and ai + 1 < args.size():
 		_autotest_dir = args[ai + 1]
 	_environment()
+	var sfx := Sfx.new()
+	add_child(sfx)
+	var fx := Fx.new()
+	add_child(fx)
 	var art: Dictionary = await Art.make(self)
 	BuildSite.terrain(self)
 	BuildSite.water(self)
@@ -53,18 +60,42 @@ func _ready() -> void:
 	BuildNature.rocks(self)
 	BuildNature.trees(self)
 	BuildNature.far_side(self)
-	BuildNature.boats(self)
+	var boats: Array = BuildNature.boats(self)
 	_info = BuildHangar.build(self, art)
+	var props := BuildProps.build(self, art)
+	var life := Life.new()
+	add_child(life)
+	life.setup(_info, props, boats)
+	sfx.start_ambience(Vector3(-120, 12, -74), self)
 	_display_mechs()
 	_spawn_player()
 	hud = Hud.new()
 	add_child(hud)
 	hud.device_changed.connect(_refresh_prompts)
 	hud.fade_in(2.0)
-	_start_step(0)
 	if _autotest_dir == "":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	else:
+		_autotest_setup()
+	if OS.get_cmdline_user_args().has("--skip-intro"):
+		(_info["rig"]["arms"] as Node3D).position = Vector3(-2.0, 4.5, 0)
+		(_info["rig"]["clamps"] as Node3D).position.y = -0.32
+	else:
+		_intro = Intro.new()
+		_intro.world = self
+		_intro.mech = mech
+		_intro.rig = rig
+		_intro.cam = cam
+		_intro.hud = hud
+		_intro.gantry = _info["rig"]
+		add_child(_intro)
+		if _autotest_dir != "":
+			_intro.beat.connect(func(n: String): _shot("i_" + n))
+		await _intro.run()
+		_intro.queue_free()
+		_intro = null
+	_start_step(0)
+	if _autotest_dir != "":
 		_autotest()
 
 # ------------------------------------------------------------------ environment
@@ -150,9 +181,12 @@ func _spawn_player() -> void:
 	cam.target = mech
 	cam.yaw = mech.yaw
 	cam.global_position = mech.global_position + Vector3(0, 6.2, 0)
-	mech.footstep.connect(func(_s): cam.add_trauma(0.12 if not mech.in_water else 0.05))
-	mech.landed.connect(func(v): cam.add_trauma(clampf((v - 8.0) / 40.0, 0.0, 0.6)))
-	mech.entered_water.connect(func(): hud.toast("ENTERING WATER  ·  TRACTION REDUCED", 2.0))
+	mech.footstep.connect(_on_footstep)
+	mech.landed.connect(_on_landed)
+	mech.quick_boosted.connect(_on_quick_boost)
+	mech.entered_water.connect(_on_entered_water)
+	_exhaust = Fx.I.emitter(self, Vector3.ZERO, "exhaust")
+	_exhaust.emitting = false
 	# spray when wading
 	_splash = GPUParticles3D.new()
 	var pm := ParticleProcessMaterial.new()
@@ -188,6 +222,50 @@ func _spawn_player() -> void:
 	_splash.emitting = false
 	add_child(_splash)
 
+# ------------------------------------------------------------------ frame feedback
+func _foot(side: int) -> Vector3:
+	var b := Basis(Vector3.UP, mech.yaw)
+	return mech.global_position + b * Vector3((side * 2 - 1) * 1.1, 0, 0)
+
+func _on_footstep(side: int) -> void:
+	var p := _foot(side)
+	cam.add_trauma(0.12 if not mech.in_water else 0.05)
+	if mech.in_water:
+		var w := Vector3(p.x, Site.WATER_Y + 0.05, p.z)
+		Fx.I.splash(w)
+		Fx.I.ripple(w, 3.0)
+		Sfx.I.play_at("splash", w, -8.0, 1.2, 18)
+	else:
+		Fx.I.dust(p + Vector3(0, 0.2, 0))
+		Sfx.I.play_at("step", p, -2.0 if not mech.boosting else 0.0, 1.0, 22)
+		if randf() < 0.35:
+			Sfx.I.play_at("clank", p + Vector3(0, 4, 0), -14.0, 1.3, 16)
+
+func _on_landed(v: float) -> void:
+	cam.add_trauma(clampf((v - 8.0) / 40.0, 0.0, 0.6))
+	var p := mech.global_position
+	if mech.in_water:
+		Fx.I.splash(Vector3(p.x, Site.WATER_Y + 0.05, p.z))
+		Fx.I.ripple(Vector3(p.x, Site.WATER_Y + 0.05, p.z), 8.0)
+		Sfx.I.play_at("splash", p, 0.0, 0.8, 30)
+	else:
+		Sfx.I.play_at("land", p, clampf(-12.0 + v * 0.5, -12.0, 4.0), 1.0, 30)
+		if v > 12.0:
+			Fx.I.shockwave(p + Vector3(0, 0.15, 0))
+
+func _on_quick_boost() -> void:
+	var back := Basis(Vector3.UP, mech.yaw) * Vector3(0, 0, 1)
+	Fx.I.qb_burst(mech.global_position + Vector3(0, 4.5, 0) + back * 1.8, back)
+	Sfx.I.play_at("qb", mech.global_position, 2.0, 1.0, 30)
+	cam.add_trauma(0.25)
+
+func _on_entered_water() -> void:
+	hud.toast("ENTERING WATER  ·  TRACTION REDUCED", 2.0)
+	var p := mech.global_position
+	Fx.I.splash(Vector3(p.x, Site.WATER_Y + 0.05, p.z))
+	Fx.I.ripple(Vector3(p.x, Site.WATER_Y + 0.05, p.z), 7.0)
+	Sfx.I.play_at("splash", p, 0.0, 1.0, 30)
+
 # ------------------------------------------------------------------ onboarding
 func _start_step(i: int) -> void:
 	step = i
@@ -197,12 +275,16 @@ func _start_step(i: int) -> void:
 		hud.set_objective(0, STEPS.size(), "TRAINING COMPLETE", "KESTREL is cleared for the Qualifier.")
 		hud.set_prompts([])
 		hud.show_complete(true)
+		Sfx.I.play("confirm", -4.0, 0.8)
+		hud.subtitle("HARBOUR CONTROL", "Clean run, pilot. KESTREL is cleared for the Qualifier.", 6.0)
 		return
 	var s: Dictionary = STEPS[i]
 	hud.set_objective(i + 1, STEPS.size(), s["title"], s["text"])
 	_refresh_prompts()
 	if i > 0:
 		hud.toast("%s  ·  COMPLETE" % STEPS[i - 1]["title"], 2.2)
+		Sfx.I.play("confirm", -6.0)
+	hud.subtitle("HARBOUR CONTROL", s["radio"], 5.0)
 
 func _refresh_prompts() -> void:
 	if step < STEPS.size():
@@ -255,6 +337,14 @@ func _check_step() -> void:
 
 func _process(dt: float) -> void:
 	if mech == null or hud == null:
+		return
+	# frame feedback runs even while the intro has control
+	Sfx.I.set_boost(1.0 if mech.boosting else (0.45 if mech.hovering else 0.0))
+	Sfx.I.set_wind(clampf((mech.global_position.y - 2.0) / 20.0 + mech.speed() / 60.0, 0.0, 1.0))
+	var back := Basis(Vector3.UP, mech.yaw) * Vector3(0, 0, 1)
+	_exhaust.global_position = mech.global_position + Vector3(0, 4.2, 0) + back * 1.9
+	_exhaust.emitting = mech.boosting or mech.hovering
+	if _intro:
 		return
 	if Input.is_action_just_pressed("pause"):
 		_paused = not _paused
@@ -316,14 +406,17 @@ func _drive(target: Vector3, boost := false, timeout := 30.0, radius := 5.0) -> 
 	mech.sim_move = Vector2.ZERO
 	mech.sim_boost = false
 
-func _autotest() -> void:
-	cam.input_enabled = false
-	mech.input_enabled = false
+func _autotest_setup() -> void:
 	_shot_cam = Camera3D.new()
 	_shot_cam.fov = 60
 	_shot_cam.far = 9000
 	add_child(_shot_cam)
-	await _wait(4.0)
+
+func _autotest() -> void:
+	cam.input_enabled = false
+	mech.input_enabled = false
+	await _wait(3.0)
+	await _shot("i_handover")
 	if OS.get_cmdline_user_args().has("--quick"):
 		cam.cam.current = true
 		await _wait(1.0)

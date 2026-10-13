@@ -21,7 +21,7 @@ static func build(root: Node3D, art: Dictionary) -> Dictionary:
 	roof(root)
 	interior_frame(root)
 	info["crane"] = crane(root)
-	gantry(root, Site.SPAWN, true)
+	info["rig"] = gantry(root, Site.SPAWN, true)
 	gantry(root, Vector3(-138, 0, -102), false)
 	gantry(root, Vector3(-138, 0, -44), false)
 	workshop(root, art)
@@ -124,7 +124,7 @@ static func shell(root: Node3D, art: Dictionary) -> void:
 	sm.emission_texture = art.get("sign")
 	sm.emission_energy_multiplier = 0.35
 	sign.material_override = sm
-	sign.position = Vector3(X1 + 3.85, Site.DOOR_H + 1.8, (Site.DOOR_Z0 + Site.DOOR_Z1) * 0.5)
+	sign.position = Vector3(X1 + 5.8, 29.0, (Site.DOOR_Z0 + Site.DOOR_Z1) * 0.5)
 	sign.rotation.y = PI * 0.5
 	root.add_child(sign)
 	# floodlights over the apron and warm interior spill
@@ -261,7 +261,11 @@ static func crane(root: Node3D) -> Node3D:
 	return holder
 
 ## Yellow service gantry around a mech bay: towers, three deck levels, stairs and rails.
-static func gantry(root: Node3D, c: Vector3, open_front: bool) -> void:
+static func gantry(root: Node3D, c: Vector3, open_front: bool) -> Dictionary:
+	var out := {}
+	# the spawn bay's arms, clamps and umbilicals are separate so the release sequence can move them
+	var ga := Geo.new() if open_front else null
+	var gc := Geo.new() if open_front else null
 	var g := Geo.new()
 	var yel := Mats.yellow()
 	var grate := Mats.lit("Grating", Color(0.25, 0.26, 0.27), 0.6, 0.7, Tex.tread(), 0.6, Vector3(2, 2, 2))
@@ -286,15 +290,17 @@ static func gantry(root: Node3D, c: Vector3, open_front: bool) -> void:
 			g.beam(grate, a, b, 1.1, 0.12)
 			g.beam(yel, a + Vector3(0, 1.0, side * 0.55), b + Vector3(0, 1.0, side * 0.55), 0.06)
 		# service arms reaching toward the mech's torso
-		g.beam(yel, Vector3(tx, 7.0, tz - side * 1.8), Vector3(c.x, 6.4, c.z + side * 2.4), 0.25)
-		g.box(Mats.dark(), Vector3(c.x, 6.4, c.z + side * 2.4), Vector3(0.6, 0.6, 0.6))
+		var arm_g: Geo = ga if ga else g
+		arm_g.beam(yel, Vector3(tx, 7.0, tz - side * 1.8), Vector3(c.x, 6.4, c.z + side * 2.4), 0.25)
+		arm_g.box(Mats.dark(), Vector3(c.x, 6.4, c.z + side * 2.4), Vector3(0.6, 0.6, 0.6))
 		Geo.box_collider(root, Vector3(tx, 6.5, tz), Vector3(5.4, 13, 3.6))
 	# rear walkway joining the towers at the top deck
 	g.box(grate, Vector3(c.x - 4.2, 10.8, c.z), Vector3(2.0, 0.2, 15.0))
 	g.beam(yel, Vector3(c.x - 5.2, 11.9, c.z - 7.5), Vector3(c.x - 5.2, 11.9, c.z + 7.5), 0.07)
 	# floor clamps and the bay outline in hazard paint
 	for side: float in [-1.0, 1.0]:
-		g.box(Mats.hazard(), Vector3(c.x, 0.15, c.z + side * 1.3), Vector3(3.2, 0.3, 1.2))
+		var clamp_g: Geo = gc if gc else g
+		clamp_g.box(Mats.hazard(), Vector3(c.x, 0.15, c.z + side * 1.3), Vector3(3.2, 0.3, 1.2))
 	# hoses and umbilicals draped from the tower
 	for k in 3:
 		var a := Vector3(c.x - 1.0, 10.6 - k * 0.3, c.z + 6.0)
@@ -303,9 +309,17 @@ static func gantry(root: Node3D, c: Vector3, open_front: bool) -> void:
 		for s in range(1, 9):
 			var t := s / 8.0
 			var p := a.lerp(b, t) + Vector3(0, -sin(t * PI) * 1.4, 0)
-			g.beam(Mats.rubber() if k != 1 else Mats.orange(), prev, p, 0.12)
+			(ga if ga else g).beam(Mats.rubber() if k != 1 else Mats.orange(), prev, p, 0.12)
 			prev = p
 	g.commit(root, "Gantry", true, false)
+	if open_front:
+		for spec in [["arms", ga], ["clamps", gc]]:
+			var h := Node3D.new()
+			h.name = "Gantry_" + spec[0]
+			root.add_child(h)
+			(spec[1] as Geo).commit(h, "Geo", true, false)
+			out[spec[0]] = h
+	return out
 
 static func workshop(root: Node3D, art: Dictionary) -> void:
 	var g := Geo.new()

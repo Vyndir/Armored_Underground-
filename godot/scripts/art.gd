@@ -9,6 +9,10 @@ static func make(host: Node) -> Dictionary:
 	out["num03"] = await Tex.paint(host, Vector2i(512, 360), func(c: Control): Tex.stencil(c, "03", Tex.CREAM))
 	out["sign"] = await Tex.paint(host, Vector2i(1536, 200), func(c: Control): Tex.sign_panel(c, "IRON ASCENDANT  ·  TRAINING HANGAR 03", "WATERFRONT FACILITY  ·  AUTHORISED FRAMES ONLY"), false)
 	out["screen"] = await Tex.paint(host, Vector2i(512, 320), func(c: Control): Tex.screen(c, "KESTREL  ·  SYSTEMS CHECK", ["LEG ACTUATORS ...... OK", "BOOSTER BANK ....... OK", "GYRO / BALANCE ..... OK", "WADING SEALS ....... OK", "FCS ................ STANDBY"]), false)
+	out["flag"] = await Tex.paint(host, Vector2i(512, 300), func(c: Control): Tex.flag(c), false)
+	out["sign_speed"] = await Tex.paint(host, Vector2i(480, 280), func(c: Control): Tex.road_sign(c, "FRAME SPEED", "15 KM/H IN YARD", Tex.NAVY), false)
+	out["sign_slip"] = await Tex.paint(host, Vector2i(480, 280), func(c: Control): Tex.road_sign(c, "SLIPWAY 1", "WADING ZONE AHEAD", Tex.ORANGE.darkened(0.2)), false)
+	out["sign_crossing"] = await Tex.paint(host, Vector2i(480, 280), func(c: Control): Tex.road_sign(c, "MECH CROSSING", "GIVE WAY TO FRAMES", Tex.NAVY), false)
 	out["markings"] = await Tex.paint(host, Vector2i(2048, 2496), func(c: Control): apron_paint(c))
 	return out
 
