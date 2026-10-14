@@ -44,6 +44,7 @@ var tuning_panel: TuningPanel
 var hour := 10.7
 var step := 0
 var night := false
+var dusk := false
 var _step_start := {}
 var _done := false
 var _autotest_dir := ""
@@ -64,6 +65,7 @@ func _ready() -> void:
 	if ai >= 0 and ai + 1 < args.size():
 		_autotest_dir = args[ai + 1]
 	night = args.has("--night")
+	dusk = args.has("--dusk") and not night
 	_environment(args.has("--laptop"))
 	var sfx := Sfx.new()
 	add_child(sfx)
@@ -89,9 +91,11 @@ func _ready() -> void:
 	sfx.start_ambience(Vector3(-108, 9, -74), self)
 	_display_mechs()
 	_spawn_player()
-	_set_night_lights(night)
+	_set_night_lights(night or dusk)
 	if night:
 		_apply_night()
+	elif dusk:
+		_apply_dusk()
 	hud = Hud.new()
 	add_child(hud)
 	hud.device_changed.connect(_refresh_prompts)
@@ -203,6 +207,29 @@ func _set_night_lights(on: bool) -> void:
 	for n in get_tree().get_nodes_in_group("night_lights"):
 		(n as Node3D).visible = on
 
+## Dusk: a low sun in the west behind the hangar lights the bay, bridge and city
+## warmly from the arrival view; lamps on, half the city's windows lit.
+func _apply_dusk() -> void:
+	hour = 19.3
+	_sun.rotation_degrees = Vector3(-9, -95, 0)
+	_sun.light_color = Color(1.0, 0.64, 0.38)
+	_sun.light_energy = 1.15
+	_sky.set_shader_parameter("zenith", Color(0.13, 0.2, 0.42))
+	_sky.set_shader_parameter("horizon", Color(0.95, 0.64, 0.44))
+	_sky.set_shader_parameter("ground", Color(0.25, 0.2, 0.2))
+	_sky.set_shader_parameter("cloud_light", 0.8)
+	_env.ambient_light_energy = 0.5
+	_env.fog_light_color = Color(0.78, 0.62, 0.52)
+	City.material().set_shader_parameter("night", 0.45)
+	var water := Mats.get_m("Water") as ShaderMaterial
+	if water:
+		water.set_shader_parameter("light_level", 0.6)
+	for n in get_tree().get_nodes_in_group("night_lights"):
+		if n is SpotLight3D:
+			(n as SpotLight3D).light_energy = 3.0
+		elif n is OmniLight3D:
+			(n as OmniLight3D).light_energy = 1.4
+
 ## Night: moonlight from the same side as the day sun, a dark sky, lamps on.
 func _apply_night() -> void:
 	hour = 22.2
@@ -214,7 +241,7 @@ func _apply_night() -> void:
 	_sky.set_shader_parameter("ground", Color(0.02, 0.025, 0.03))
 	_sky.set_shader_parameter("cloud_cover", 0.35)
 	_sky.set_shader_parameter("cloud_light", 0.06)
-	_env.ambient_light_energy = 0.35
+	_env.ambient_light_energy = 0.45
 	_env.fog_light_color = Color(0.08, 0.1, 0.16)
 	_env.tonemap_exposure = 1.25
 	_env.glow_intensity = 0.8
@@ -230,7 +257,8 @@ func _apply_night() -> void:
 		if n is SpotLight3D:
 			(n as SpotLight3D).light_energy = 5.0
 		elif n is OmniLight3D:
-			(n as OmniLight3D).light_energy = 2.4
+			(n as OmniLight3D).light_energy = 3.0
+			(n as OmniLight3D).omni_range = maxf((n as OmniLight3D).omni_range, 26.0)
 
 # ------------------------------------------------------------------ frames
 func _display_mechs() -> void:

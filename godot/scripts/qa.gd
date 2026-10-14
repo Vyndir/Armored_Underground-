@@ -463,7 +463,7 @@ func scene_costs() -> void:
 
 func review_views() -> void:
 	await scene_costs()
-	var tag := ("night_" if world.night else "") + "%dx%d" % [int(Site.DOOR_W), int(Site.DOOR_H)]
+	var tag := ("night_" if world.night else ("dusk_" if world.dusk else "")) + "%dx%d" % [int(Site.DOOR_W), int(Site.DOOR_H)]
 	var east := -PI * 0.5
 	var west := PI * 0.5
 	await _wait(2.0)

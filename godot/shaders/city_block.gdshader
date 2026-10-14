@@ -58,6 +58,8 @@ void fragment() {
 		// lit windows at night: about a third, mixing warm homes and cool offices
 		float on = step(0.62, hash(floor(cell) * 1.7 + seed * 13.0));
 		vec3 warm = mix(vec3(1.0, 0.72, 0.42), vec3(0.75, 0.85, 1.0), step(0.7, hash(floor(cell) + 3.1)));
-		EMISSION = warm * win * mix(on, 0.36, far) * night * 2.2;
+		// far away a facade averages its windows: about a third of them lit
+		EMISSION = warm * mix(win * on * 0.9, cover * 0.07, far) * night;
+		ALBEDO *= mix(1.0, 0.35, night);   // walls fall dark at night
 	}
 }
