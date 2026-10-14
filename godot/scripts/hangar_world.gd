@@ -351,6 +351,8 @@ func _start_step(i: int) -> void:
 		hud.show_complete(true)
 		Sfx.I.play("confirm", -4.0, 0.8)
 		hud.subtitle("HARBOUR CONTROL", "Clean run, pilot. The yard's yours. Explore as you like.", 6.0)
+		# clear the card for free roam
+		get_tree().create_timer(6.0).timeout.connect(func() -> void: hud.show_complete(false))
 		return
 	var s: Dictionary = STEPS[i]
 	hud.set_objective(i + 1, STEPS.size(), s["title"], s["text"])
