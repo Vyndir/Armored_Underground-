@@ -85,10 +85,25 @@ static func ground(x: float, z: float) -> float:
 	var shore := minf(d * 0.55, 6.0)
 	var hills := smoothstep(0.0, 260.0, outside) * (34.0 + 60.0 * (0.5 + 0.5 * n2(x, z, 0.004, 21)))
 	var headland := 30.0 * exp(-pow(Vector2(x - 40.0, z + 300.0).length() / 110.0, 2.0))
-	var h := WATER_Y + 1.0 + shore + hills + headland + rough * clampf(outside / 25.0, 0.2, 1.0)
+	# coastal profile: a rocky shelf at the waterline, then a bluff whose width
+	# wanders along the coast (steep in places, slumped in others), broken by
+	# ledges, before it rolls into the hills, instead of a wall at the shoreline
+	var bluff_w := 45.0 + 75.0 * (0.5 + 0.5 * n2(x, z, 0.006, 5))
+	var p := clampf(d / bluff_w, 0.0, 1.0)
+	var rise := smoothstep(0.08, 1.0, p)
+	rise += sin(p * 18.0 + n2(x, z, 0.02, 7) * 6.0) * 0.035 * p * (1.0 - p)   # ledges
+	var crags := absf(n2(x, z, 0.05, 11)) * 7.0 * sin(p * PI)                     # outcrops on the face
+	var h := WATER_Y + 1.0 + shore + (hills + headland) * clampf(rise, 0.0, 1.0) + crags * smoothstep(0.0, 30.0, hills + headland) \
+		+ rough * clampf(outside / 25.0, 0.2, 1.0)
 	# blend down to apron level at its edges
 	var to_apron := clampf(outside / 22.0, 0.0, 1.0)
 	return lerpf(-0.2, h, to_apron) if outside < 22.0 else h
+
+## Ground gradient magnitude (rise over run) from central differences.
+static func slope(x: float, z: float, e := 3.0) -> float:
+	var gx := (ground(x + e, z) - ground(x - e, z)) / (2.0 * e)
+	var gz := (ground(x, z + e) - ground(x, z - e)) / (2.0 * e)
+	return sqrt(gx * gx + gz * gz)
 
 static func on_land(x: float, z: float) -> bool:
 	return x < coast_x(z)

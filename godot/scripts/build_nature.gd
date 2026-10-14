@@ -58,6 +58,18 @@ static func rocks(root: Node3D) -> void:
 			var s := _rng.randf_range(1.5, 6.5) * (1.4 if _rng.randf() < 0.15 else 1.0)
 			var y := Site.ground(x, z) - s * 0.25
 			per[_rng.randi() % meshes.size()].append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(s * _rng.randf_range(0.8, 1.5), s, s * _rng.randf_range(0.8, 1.3))), Vector3(x, y, z)))
+	# talus and fallen blocks scattered down the coastal bluffs
+	for z in range(-560, 300, 4):
+		if z > Site.APRON_Z0 - 10 and z < Site.APRON_Z1 + 6:
+			continue
+		var cx2 := Site.coast_x(z)
+		for k in 2:
+			var x := cx2 - _rng.randf_range(6.0, 95.0)
+			var zz := z + _rng.randf_range(-2.0, 2.0)
+			if Site.slope(x, zz) < 0.55:
+				continue
+			var s := _rng.randf_range(2.0, 7.5)
+			per[_rng.randi() % meshes.size()].append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(s * _rng.randf_range(0.9, 1.6), s * 0.75, s)), Vector3(x, Site.ground(x, zz) - s * 0.3, zz)))
 	# the rocky foreground of the concept, below the apron's south edge
 	for k in 120:
 		var x := _rng.randf_range(-120.0, 70.0)
@@ -115,7 +127,7 @@ static func trees(root: Node3D) -> void:
 		if not Site.on_land(x, z) or Site.in_apron(x, z, 14.0):
 			continue
 		var h := Site.ground(x, z)
-		if h < Site.WATER_Y + 1.6:
+		if h < Site.WATER_Y + 1.6 or Site.slope(x, z) > 0.95:   # leave the bluff faces bare
 			continue
 		var dens := 0.5 + 0.5 * Site.n2(x, z, 0.012, 77)
 		if _rng.randf() > dens:
