@@ -28,7 +28,8 @@ print('TRIS_TOTAL', tris)
 
 if '--bake' in argv:
     import bake
-    bake.bake_all(OUT)
+    only = [p for a in argv if a.startswith('--bake-only=') for p in a.split('=', 1)[1].split(',')]
+    bake.bake_all(OUT, only or None)
 
 if '--export' in argv:
     bpy.ops.object.select_all(action='SELECT')

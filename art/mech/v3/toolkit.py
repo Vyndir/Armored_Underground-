@@ -7,7 +7,7 @@ Every generated object records:
 
 Coordinates: mech faces -Y, Z up, meters.
 """
-import bpy, bmesh, math, random
+import bpy, bmesh, math, random, zlib
 from mathutils import Vector, Matrix, Euler, Quaternion
 
 MCLASS = ['paint', 'accent', 'frame', 'joint', 'steel', 'decal', 'glow', 'thrust', 'glass', 'rubber']
@@ -28,7 +28,8 @@ def begin(part_id, seed=None):
     STATE['part'] = part_id
     STATE['objs'] = []
     STATE['cutters'] = []
-    RNG.seed(seed if seed is not None else hash(part_id) & 0xffff)
+    # crc32, not hash(): str hashes are salted per process, which made the detail differ between builds
+    RNG.seed(seed if seed is not None else zlib.crc32(part_id.encode()) & 0xffff)
 
 
 def _link(name, bm, mclass, bone, bevel=0.0, bevel_segs=2, angle=32, marker=None, smooth=False, harden=True, per_face_class=None):

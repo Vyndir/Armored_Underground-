@@ -31,6 +31,23 @@ static func _frame_blue() -> StandardMaterial3D:
 static func _grate() -> StandardMaterial3D:
 	return Mats.lit("Grating", Color(0.25, 0.26, 0.27), 0.6, 0.7, Tex.tread(), 0.6, Vector3(2, 2, 2))
 
+static func _control_glass() -> Material:
+	if Mats.get_m("ControlGlass"):
+		return Mats.get_m("ControlGlass")
+	var m := StandardMaterial3D.new()
+	m.resource_name = "ControlGlass"
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(0.62, 0.8, 0.88, 0.32)
+	m.roughness = 0.04
+	m.metallic = 0.1
+	m.metallic_specular = 0.9
+	m.emission_enabled = true
+	m.emission = Color(0.35, 0.6, 0.75)
+	m.emission_energy_multiplier = 0.25
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	Mats._m["ControlGlass"] = m
+	return m
+
 static func _red() -> StandardMaterial3D:
 	return Mats.painted("FireRed", Color(0.7, 0.07, 0.05), 0.45, 0.2)
 
@@ -200,7 +217,10 @@ static func mezzanine(root: Node3D) -> void:
 	g.aabb(wall, Vector3(x0, deck, cz1 - 0.25), Vector3(cx1, deck + ch, cz1))
 	g.aabb(wall, Vector3(x0, deck + ch, cz0), Vector3(cx1 + 0.4, deck + ch + 0.35, cz1))
 	g.aabb(wall, Vector3(cx1 - 0.2, deck, cz0), Vector3(cx1, deck + 0.9, cz1))
-	g.aabb(Mats.glass(), Vector3(cx1 - 0.1, deck + 0.9, cz0), Vector3(cx1 - 0.05, deck + ch, cz1))
+	# light, partly see-through glazing on its own shadowless mesh, so the lit room reads from the floor
+	var glaze := Geo.new()
+	glaze.aabb(_control_glass(), Vector3(cx1 - 0.1, deck + 0.9, cz0), Vector3(cx1 - 0.05, deck + ch, cz1))
+	glaze.commit(root, "ControlGlass", false, false)
 	var mull := cz0
 	while mull <= cz1:
 		g.box(Mats.dark(), Vector3(cx1 - 0.08, deck + ch * 0.5 + 0.45, mull), Vector3(0.14, ch - 0.9, 0.14))
@@ -213,12 +233,17 @@ static func mezzanine(root: Node3D) -> void:
 		g.box(Mats.dark(), Vector3(cx1 - 1.4, deck + 1.35, z), Vector3(0.1, 0.8, 2.2), Basis(Vector3.FORWARD, 0.2))
 		g.box(screen, Vector3(cx1 - 1.33, deck + 1.35, z), Vector3(0.02, 0.65, 2.0), Basis(Vector3.FORWARD, 0.2))
 		z += 4.0
-	var lamp := OmniLight3D.new()
-	lamp.position = Vector3((x0 + cx1) * 0.5, deck + ch - 0.6, (cz0 + cz1) * 0.5)
-	lamp.light_color = Color(0.7, 0.85, 1.0)
-	lamp.omni_range = 14.0
-	lamp.light_energy = 1.2
-	root.add_child(lamp)
+	# ceiling light panels and lamps spaced down the room
+	var lz := cz0 + 4.0
+	while lz < cz1 - 2.0:
+		g.box(Mats.glow("ControlPanelLight", Color(0.85, 0.93, 1.0), 3.0), Vector3((x0 + cx1) * 0.5, deck + ch - 0.03, lz), Vector3(2.4, 0.04, 1.2))
+		var lamp := OmniLight3D.new()
+		lamp.position = Vector3((x0 + cx1) * 0.5, deck + ch - 0.5, lz)
+		lamp.light_color = Color(0.8, 0.9, 1.0)
+		lamp.omni_range = 9.0
+		lamp.light_energy = 2.2
+		root.add_child(lamp)
+		lz += 8.0
 	# stair down to the hall floor at the south end
 	var steps := 18
 	var sx := x1 - 1.6

@@ -126,7 +126,13 @@ def d_legs():
     with Mirror():
         corner_bolts('ThighSideBolt.L', T.p(0.42, 0.32, -0.02), (1, 0, 0), 0.32, 0.4, 'thigh.L', up=tuple(T.u), lift=0.045)
         piston('AnklePiston2.L', S.p(0.55, 0.33, -0.1), S.p(0.98, 0.3, -0.08), 0.045, 'shin.L')
-        hose('KneeHose.L', [T.p(0.7, -0.3, -0.05), T.p(0.98, -0.34, -0.2), S.p(0.2, -0.3, -0.22)], 0.032, 'shin.L')
+        # knee hose in two halves meeting on the knee pivot axis, so neither end tears away when the leg bends
+        pivot = S.a + Vector((-0.34, 0, 0))
+        cable('KneeHoseUp.L', [T.p(0.7, -0.3, -0.05), T.p(0.9, -0.34, -0.14), pivot], 0.032, 'thigh.L')
+        cyl('KneeHoseUp.L_Col', T.p(0.7, -0.3, -0.05) - T.d * 0.02, T.p(0.7, -0.3, -0.05) + T.d * 0.07, 0.046, 'steel', 'thigh.L', 10)
+        cable('KneeHoseDn.L', [pivot, S.p(0.12, -0.33, -0.16), S.p(0.25, -0.3, -0.22)], 0.032, 'shin.L')
+        cyl('KneeHoseDn.L_Col', S.p(0.25, -0.3, -0.22) - S.d * 0.07, S.p(0.25, -0.3, -0.22) + S.d * 0.02, 0.046, 'steel', 'shin.L', 10)
+        cyl('KneeSwivel.L', pivot + Vector((-0.06, 0, 0)), pivot + Vector((0.06, 0, 0)), 0.07, 'steel', 'shin.L', 12)
         fins('CalfFin.L', S.p(0.3, 0, -0.34), tuple(S.d), tuple(-S.f), 5, 0.08, 0.3, 0.07, 'shin.L')
         corner_bolts('KneeBolt.L', S.p(0.04, 0, 0.62), tuple(S.f), 0.2, 0.08, 'shin.L', up=tuple(S.u))
         for k, dx in enumerate((-0.28, 0.0, 0.28)):
