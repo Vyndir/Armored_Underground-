@@ -21,7 +21,7 @@ var _excluded := false
 
 func _ready() -> void:
 	arm = SpringArm3D.new()
-	arm.spring_length = 15.0
+	arm.spring_length = 15.0 * Site.MECH_SCALE
 	arm.margin = 0.4
 	var sphere := SphereShape3D.new()
 	sphere.radius = 0.6
@@ -70,10 +70,10 @@ func _process(dt: float) -> void:
 		yaw = lerp_angle(yaw, target.yaw, 1.0 - exp(-dt * 12.0))
 	pitch = clampf(pitch, -1.1, 0.55)
 	var sp := target.speed()
-	var pivot := target.global_position + Vector3(0, 6.2, 0)
+	var pivot := target.global_position + Vector3(0, 6.2 * Site.MECH_SCALE, 0)
 	global_position = global_position.lerp(pivot, 1.0 - exp(-dt * 14.0)) if global_position.distance_to(pivot) < 30.0 else pivot
 	rotation = Vector3(pitch, yaw, 0)
-	arm.spring_length = lerpf(arm.spring_length, 15.0 + clampf(sp / 36.0, 0.0, 1.0) * 4.0, 1.0 - exp(-dt * 3.0))
+	arm.spring_length = lerpf(arm.spring_length, (15.0 + clampf(sp / 36.0, 0.0, 1.0) * 4.0) * Site.MECH_SCALE, 1.0 - exp(-dt * 3.0))
 	_fov = lerpf(_fov, 62.0 + clampf(sp / 36.0, 0.0, 1.0) * 12.0, 1.0 - exp(-dt * 3.0))
 	cam.fov = _fov
 	_trauma = maxf(0.0, _trauma - dt * 1.8)

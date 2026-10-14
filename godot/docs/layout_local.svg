@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 900" font-family="Segoe UI, Arial, sans-serif" font-size="11">
+  <!-- 1 px = 1 m. World x -> svg x + 300 ; world z -> svg y + 560 (north = -z = up) -->
+  <rect width="760" height="900" fill="#eef1f3"/>
+  <text x="16" y="24" font-size="16" font-weight="bold">Waterfront Training Hangar: proposed local layout (1 px = 1 m, north up)</text>
+  <text x="16" y="42" fill="#555">World axes: +x east (water side), -z north (toward bridge/downtown). Spawn and hangar keep their current world positions.</text>
+
+  <!-- land -->
+  <rect x="0" y="60" width="340" height="840" fill="#cfd8c4"/>
+  <!-- forested hills / headland west -->
+  <rect x="0" y="60" width="120" height="840" fill="#a9bb98"/>
+  <text x="14" y="300" fill="#4c5e3e" transform="rotate(-90 14 300)">forested hills (existing terrain, gentler coast)</text>
+  <!-- rocky wooded point south of apron (reference foreground) -->
+  <path d="M120,640 L340,620 L380,660 L330,720 L200,760 L120,740 Z" fill="#b6b2a4"/>
+  <text x="190" y="705" fill="#5b5648">rocky foreground point</text>
+
+  <!-- water: deep bay -->
+  <path d="M340,60 L760,60 L760,900 L380,900 L380,660 L340,620 Z" fill="#2f5d86"/>
+  <!-- shallow training shelf -->
+  <rect x="340" y="500" width="80" height="130" fill="#7fc4c9"/>
+  <text x="346" y="556" fill="#0d3a44" font-weight="bold">SHALLOW</text>
+  <text x="346" y="570" fill="#0d3a44" font-weight="bold">SHELF</text>
+  <text x="346" y="584" fill="#0d3a44">~1.6 m deep</text>
+  <text x="346" y="598" fill="#0d3a44">80 x 130 m</text>
+  <!-- shelf edge drop + boom -->
+  <path d="M420,500 L420,630" stroke="#ff8a1f" stroke-width="4" stroke-dasharray="7,4"/>
+  <path d="M340,500 L420,500" stroke="#ff8a1f" stroke-width="4" stroke-dasharray="7,4"/>
+  <path d="M340,630 L420,630" stroke="#ff8a1f" stroke-width="4" stroke-dasharray="7,4"/>
+  <text x="428" y="520" fill="#fff">boom + piles + "DEEP WATER" signs</text>
+  <text x="428" y="534" fill="#fff">(visible barrier, collision behind it;</text>
+  <text x="428" y="548" fill="#fff"> shelf floor runs 15 m past it)</text>
+  <text x="470" y="700" fill="#cfe3f5">shelf drops to deep bay (4 m to 25 m)</text>
+
+  <!-- quay / shoreline test strip -->
+  <rect x="315" y="60" width="25" height="560" fill="#9aa1a6"/>
+  <text x="331" y="300" fill="#22282c" transform="rotate(-90 331 300)" font-weight="bold">SHORELINE TEST STRIP / QUAY: 25 m x 560 m (continues north)</text>
+  <!-- slipway -->
+  <rect x="310" y="576" width="60" height="34" fill="#7d858b"/>
+  <text x="250" y="596" fill="#22282c">slipway (return ramp)</text>
+  <!-- steps / ramp at north of shelf -->
+  <rect x="330" y="502" width="14" height="22" fill="#7d858b"/>
+  <text x="246" y="514" fill="#22282c">2nd ramp exit</text>
+
+  <!-- apron -->
+  <rect x="150" y="390" width="165" height="230" fill="#c4c4c0"/>
+  <rect x="210" y="410" width="100" height="190" fill="none" stroke="#e0a400" stroke-width="2" stroke-dasharray="5,3"/>
+  <text x="214" y="428" fill="#5a4a00" font-weight="bold">OPEN MOVEMENT FIELD</text>
+  <text x="214" y="442" fill="#5a4a00">~100 x 190 m kept clear</text>
+  <text x="214" y="456" fill="#5a4a00">(walk / turn / jump / short boost)</text>
+  <circle cx="242" cy="486" r="8" fill="none" stroke="#fff" stroke-width="2"/><text x="254" y="490">pad 1</text>
+  <circle cx="290" cy="540" r="8" fill="none" stroke="#fff" stroke-width="2"/><text x="268" y="560">pad 2</text>
+  <text x="156" y="634" fill="#444">props and equipment only along the edges</text>
+
+  <!-- hangar (proposed, smaller) -->
+  <rect x="150" y="450" width="60" height="70" fill="#5b6876"/>
+  <rect x="207" y="465" width="6" height="40" fill="#ffd25a"/>
+  <text x="154" y="440" font-weight="bold">HANGAR 60 x 70 x 21 m</text>
+  <text x="154" y="530" fill="#fff">door 40 x 17 m</text>
+  <circle cx="172" cy="486" r="5" fill="#ff5a3c"/><text x="122" y="478" fill="#a3220d">spawn</text>
+  <!-- current hangar outline -->
+  <rect x="135" y="442" width="87" height="88" fill="none" stroke="#a3220d" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="124" y="544" fill="#a3220d">current 87 x 88 x 32 m</text>
+
+  <!-- yard edge fence + gate -->
+  <path d="M150,390 L315,390" stroke="#333" stroke-width="2"/>
+  <rect x="245" y="384" width="24" height="12" fill="#ffd25a" stroke="#333"/>
+  <text x="274" y="380">service gate</text>
+
+  <!-- road -->
+  <rect x="251" y="60" width="12" height="330" fill="#55595e"/>
+  <path d="M257,60 L257,390" stroke="#fff" stroke-dasharray="6,6"/>
+  <text x="196" y="260" transform="rotate(-90 196 260)">WATERFRONT ROAD 12 m (2 lanes + path)</text>
+  <!-- warehouses between road and strip -->
+  <rect x="268" y="120" width="40" height="60" fill="#8d8a84"/><rect x="268" y="200" width="40" height="50" fill="#8d8a84"/><rect x="268" y="270" width="40" height="70" fill="#8d8a84"/>
+  <text x="268" y="114" fill="#333">sheds / workshops</text>
+  <!-- billboard -->
+  <rect x="222" y="300" width="24" height="5" fill="#d33"/><text x="140" y="304" fill="#a00">billboard</text>
+  <rect x="222" y="160" width="24" height="5" fill="#d33"/><text x="140" y="164" fill="#a00">billboard</text>
+  <!-- slice end -->
+  <path d="M230,90 L300,90" stroke="#d00" stroke-width="5"/>
+  <text x="120" y="86" fill="#b00" font-weight="bold">PLAYABLE SLICE ENDS: checkpoint + barrier</text>
+  <text x="120" y="102" fill="#b00">z = -470 (road continues as scenery to bridge)</text>
+
+  <!-- sightlines from hangar door -->
+  <g stroke="#222" stroke-width="1.5" fill="none" marker-end="url(#a)">
+    <path d="M213,485 L330,250"/>
+    <path d="M213,485 L380,320"/>
+    <path d="M213,485 L460,500"/>
+  </g>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#222"/></marker></defs>
+  <text x="334" y="246" fill="#fff">to CENTRAL BRIDGE (bearing ~27 deg, 1.8 km)</text>
+  <text x="384" y="318" fill="#fff">to DOWNTOWN (~45 deg, 2.9 km)</text>
+  <text x="464" y="494" fill="#fff">to CHAMPIONSHIP ARENA across bay (~95 deg, 1.4 km)</text>
+
+  <!-- scale bar -->
+  <path d="M560,860 L660,860" stroke="#000" stroke-width="3"/><text x="590" y="852">100 m</text>
+  <text x="16" y="880" fill="#444">Dashed red = current hangar footprint. Mech baseline 6.8 m tall: door 17 m = 2.5x mech; quay 25 m = ~4 mech widths.</text>
+</svg>

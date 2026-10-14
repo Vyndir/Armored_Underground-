@@ -16,7 +16,9 @@ const X1 := Site.HANGAR_X1
 const Z0 := Site.HANGAR_Z0
 const Z1 := Site.HANGAR_Z1
 const EAVE := BuildHangar.EAVE
-const COLS := [-159.0, -148.0, -137.0, -126.0, -115.0, -104.0, -93.0, -82.0]
+const COLS := [-132.0, -121.0, -110.0, -99.0, -88.0]   # range(X0 + 6, X1, 11)
+const CRANE_Y := BuildHangar.CRANE_Y
+const TRUSS_Y := EAVE - 2.6
 
 static func build(root: Node3D) -> void:
 	structure(root)
@@ -68,30 +70,30 @@ static func structure(root: Node3D) -> void:
 		for zz: float in [Z0 + 1.2, Z1 - 1.2]:
 			# flanges turn the square posts into I-sections
 			for s: float in [-0.56, 0.56]:
-				g.box(blue, Vector3(x + s, 13, zz), Vector3(0.12, 26, 1.3))
+				g.box(blue, Vector3(x + s, TRUSS_Y * 0.5, zz), Vector3(0.12, TRUSS_Y, 1.3))
 			g.box(Mats.steel(), Vector3(x, 0.06, zz), Vector3(1.9, 0.12, 1.9))
 			_plate_bolts(g, Vector3(x, 0.12, zz), 0.7)
 			# stiffeners under the crane corbel
 			var inward := 1.0 if zz < -70.0 else -1.0
-			g.beam(blue, Vector3(x, 18.0, zz + inward * 0.5), Vector3(x, 20.2, zz + inward * 1.8), 0.14, 0.5)
+			g.beam(blue, Vector3(x, CRANE_Y - 3.6, zz + inward * 0.5), Vector3(x, CRANE_Y - 1.4, zz + inward * 1.8), 0.14, 0.5)
 			# hazard sleeve at the foot of each column
 			g.box(Mats.hazard(), Vector3(x, 0.9, zz), Vector3(1.4, 1.6, 1.4))
 	# girts: horizontal rails on the inside of the side and back walls
-	for y: float in [7.5, 13.5, 19.0, 24.5]:
+	for y: float in [5.5, 10.0, 15.5]:
 		for zz: float in [Z0 + 0.62, Z1 - 0.62]:
 			g.box(blue, Vector3((X0 + X1) * 0.5, y, zz), Vector3(X1 - X0 - 1.0, 0.36, 0.22))
 		g.box(blue, Vector3(X0 + 0.62, y, (Z0 + Z1) * 0.5), Vector3(0.22, 0.36, Z1 - Z0 - 1.0))
 	# cross bracing in the end bays of each long wall
-	for pair in [[-159.0, -148.0], [-93.0, -82.0]]:
+	for pair in [[-132.0, -121.0], [-99.0, -88.0]]:
 		for zz: float in [Z0 + 0.7, Z1 - 0.7]:
 			var a: float = pair[0] + 0.6
 			var b: float = pair[1] - 0.6
-			g.beam(blue, Vector3(a, 7.5, zz), Vector3(b, 19.0, zz), 0.16)
-			g.beam(blue, Vector3(b, 7.5, zz), Vector3(a, 19.0, zz), 0.16)
+			g.beam(blue, Vector3(a, 5.5, zz), Vector3(b, 15.5, zz), 0.16)
+			g.beam(blue, Vector3(b, 5.5, zz), Vector3(a, 15.5, zz), 0.16)
 	# bracing on the back wall between pilaster lines
-	for z0: float in [-112.0, -46.0]:
-		g.beam(blue, Vector3(X0 + 0.7, 13.5, z0), Vector3(X0 + 0.7, 24.5, z0 + 10.0), 0.16)
-		g.beam(blue, Vector3(X0 + 0.7, 24.5, z0), Vector3(X0 + 0.7, 13.5, z0 + 10.0), 0.16)
+	for z0: float in [-106.0, -52.0]:
+		g.beam(blue, Vector3(X0 + 0.7, 10.0, z0), Vector3(X0 + 0.7, 15.5, z0 + 7.0), 0.16)
+		g.beam(blue, Vector3(X0 + 0.7, 15.5, z0), Vector3(X0 + 0.7, 10.0, z0 + 7.0), 0.16)
 	# purlins between the trusses
 	for z in range(int(Z0) + 4, int(Z1), 6):
 		g.box(blue, Vector3((X0 + X1) * 0.5, EAVE - 0.75, z), Vector3(X1 - X0 - 2.0, 0.3, 0.18))
@@ -106,11 +108,11 @@ static func services(root: Node3D) -> void:
 	var water := Mats.painted("WaterGreen", Color(0.12, 0.42, 0.28), 0.45, 0.3)
 	# HVAC: two round mains threaded through the open-web trusses, above the crane
 	for z: float in [-96.0, -52.0]:
-		var y := 27.3
-		g.cylinder(duct, Vector3(X0 + 3, y, z), Vector3(X1 - 3, y, z), 0.7, 18)
+		var y := EAVE - 1.5
+		g.cylinder(duct, Vector3(X0 + 3, y, z), Vector3(X1 - 3, y, z), 0.55, 18)
 		var x := X0 + 4.0
 		while x < X1 - 3.0:
-			g.cylinder(Mats.steel(), Vector3(x, y, z), Vector3(x + 0.14, y, z), 0.78, 18)
+			g.cylinder(Mats.steel(), Vector3(x, y, z), Vector3(x + 0.14, y, z), 0.62, 18)
 			x += 3.2
 		for cx: float in COLS:
 			var dx := cx + 5.5
@@ -120,8 +122,8 @@ static func services(root: Node3D) -> void:
 			g.box(duct, Vector3(dx, y - 1.1, z), Vector3(1.4, 0.4, 1.4))
 			g.box(Mats.dark(), Vector3(dx, y - 1.32, z), Vector3(1.15, 0.05, 1.15))
 	# cable trays along the hall, hung from the trusses
-	for z: float in [-108.0, -40.0]:
-		var y := 25.5
+	for z: float in [Z0 + 5.0, Z1 - 5.0]:
+		var y := TRUSS_Y - 0.7
 		g.box(Mats.steel(), Vector3((X0 + X1) * 0.5, y, z), Vector3(X1 - X0 - 4.0, 0.06, 0.9))
 		for s: float in [-0.45, 0.45]:
 			g.box(Mats.steel(), Vector3((X0 + X1) * 0.5, y + 0.12, z + s), Vector3(X1 - X0 - 4.0, 0.25, 0.04))
@@ -129,14 +131,14 @@ static func services(root: Node3D) -> void:
 			g.cylinder(Mats.rubber(), Vector3(X0 + 2.5, y + 0.12, z - 0.3 + k * 0.2), Vector3(X1 - 2.5, y + 0.12, z - 0.3 + k * 0.2), 0.07, 6)
 		for cx: float in COLS:
 			for s: float in [-0.45, 0.45]:
-				g.beam(Mats.dark(), Vector3(cx, y, z + s), Vector3(cx, 26.0, z + s), 0.04)
+				g.beam(Mats.dark(), Vector3(cx, y, z + s), Vector3(cx, TRUSS_Y, z + s), 0.04)
 	# sprinkler lines with drop heads
 	for z in range(int(Z0) + 8, int(Z1) - 4, 12):
-		g.cylinder(red, Vector3(X0 + 2, 26.5, z), Vector3(X1 - 2, 26.5, z), 0.07, 6)
+		g.cylinder(red, Vector3(X0 + 2, EAVE - 1.8, z), Vector3(X1 - 2, EAVE - 1.8, z), 0.07, 6)
 		var x2 := X0 + 5.0
 		while x2 < X1 - 2.0:
-			g.cylinder(red, Vector3(x2, 26.5, z), Vector3(x2, 26.1, z), 0.035, 5)
-			g.cylinder(Mats.steel(), Vector3(x2, 26.1, z), Vector3(x2, 26.0, z), 0.08, 6)
+			g.cylinder(red, Vector3(x2, EAVE - 1.8, z), Vector3(x2, EAVE - 2.2, z), 0.035, 5)
+			g.cylinder(Mats.steel(), Vector3(x2, EAVE - 2.2, z), Vector3(x2, EAVE - 2.3, z), 0.08, 6)
 			x2 += 6.0
 	# pipe runs along the north and south walls, with brackets and vertical drops
 	for side: float in [-1.0, 1.0]:
@@ -179,8 +181,8 @@ static func services(root: Node3D) -> void:
 	for x: float in COLS:
 		for zz: float in [Z0 + 0.5, Z1 - 0.5]:
 			var inward := 1.0 if zz < -70.0 else -1.0
-			g.box(Mats.dark(), Vector3(x + 2.8, 10.5, zz + inward * 0.2), Vector3(0.9, 0.5, 0.4))
-			g.box(Mats.lamp(), Vector3(x + 2.8, 10.25, zz + inward * 0.25), Vector3(0.7, 0.04, 0.3))
+			g.box(Mats.dark(), Vector3(x + 2.8, 9.0, zz + inward * 0.2), Vector3(0.9, 0.5, 0.4))
+			g.box(Mats.lamp(), Vector3(x + 2.8, 8.75, zz + inward * 0.25), Vector3(0.7, 0.04, 0.3))
 	g.commit(root, "HangarServices", true, false)
 
 # ------------------------------------------------------------------ control mezzanine
@@ -190,8 +192,8 @@ static func mezzanine(root: Node3D) -> void:
 	var grate := _grate()
 	var x0 := X0 + 0.5
 	var x1 := X0 + 11.0
-	var za := -100.0
-	var zb := -48.0
+	var za := -98.0
+	var zb := -58.0
 	var deck := 7.2
 	g.aabb(grate, Vector3(x0, deck - 0.25, za), Vector3(x1, deck, zb))
 	g.box(blue, Vector3(x1 - 0.2, deck - 0.6, (za + zb) * 0.5), Vector3(0.4, 0.7, zb - za))
@@ -208,8 +210,8 @@ static func mezzanine(root: Node3D) -> void:
 		g.beam(Mats.yellow(), Vector3(x1 - 0.1, deck, z), Vector3(x1 - 0.1, deck + 1.1, z), 0.07)
 	g.box(Mats.yellow(), Vector3(x1 - 0.1, deck + 0.1, (za + zb) * 0.5), Vector3(0.05, 0.2, zb - za))
 	# glazed control room on the deck, looking over the bays
-	var cz0 := -90.0
-	var cz1 := -58.0
+	var cz0 := -94.0
+	var cz1 := -66.0
 	var cx1 := x1 - 2.2
 	var ch := 3.6
 	var wall := Mats.painted("ControlWall", Color(0.58, 0.6, 0.6), 0.55, 0.2)
@@ -265,22 +267,22 @@ static func floor_detail(root: Node3D) -> void:
 	var frame := Mats.steel()
 	# drainage trench across the door threshold and down the centre aisle
 	var trenches := [[Vector3(X1 - 3.0, 0, Site.DOOR_Z0 + 1.0), Vector3(X1 - 2.2, 0, Site.DOOR_Z1 - 1.0)],
-		[Vector3(-152.0, 0, -88.6), Vector3(-82.0, 0, -87.8)], [Vector3(-152.0, 0, -60.2), Vector3(-82.0, 0, -59.4)]]
+		[Vector3(-126.0, 0, -84.4), Vector3(-82.0, 0, -83.6)], [Vector3(-126.0, 0, -64.4), Vector3(-82.0, 0, -63.6)]]
 	for t in trenches:
 		var a: Vector3 = t[0]
 		var b: Vector3 = t[1]
 		g.aabb(frame, Vector3(a.x - 0.12, 0.0, a.z - 0.12), Vector3(b.x + 0.12, 0.025, b.z + 0.12))
 		g.aabb(grate, Vector3(a.x, 0.0, a.z), Vector3(b.x, 0.03, b.z))
 	# tie-down points around every bay
-	for c: Vector3 in [Site.SPAWN, Vector3(-138, 0, -102), Vector3(-138, 0, -44)]:
+	for c: Vector3 in Site.BAYS:
 		for sx: float in [-4.5, 4.5]:
 			for sz: float in [-4.5, 4.5]:
 				var p := c + Vector3(sx, 0, sz)
 				g.cylinder(Mats.steel(), p, p + Vector3(0, 0.04, 0), 0.35, 10)
 				g.cylinder(Mats.dark(), p + Vector3(-0.18, 0.08, 0), p + Vector3(0.18, 0.08, 0), 0.05, 6)
 	# floor access hatches near the walls
-	for x in range(-155, -84, 14):
-		for z: float in [-112.0, -36.0]:
+	for x in range(-124, -84, 12):
+		for z: float in [-105.0, -43.0]:
 			g.aabb(frame, Vector3(x - 0.9, 0.0, z - 0.9), Vector3(x + 0.9, 0.02, z + 0.9))
 			g.aabb(Mats.dark(), Vector3(x - 0.75, 0.0, z - 0.75), Vector3(x + 0.75, 0.025, z + 0.75))
 	g.commit(root, "FloorDetail", false, false)
@@ -292,13 +294,13 @@ static func exterior(root: Node3D) -> void:
 	var zc := (Site.DOOR_Z0 + Site.DOOR_Z1) * 0.5
 	# roller door: slat curtain below the header and steel guide rails on the jambs
 	var y := Site.DOOR_H - 0.25
-	while y > Site.DOOR_H - 2.0:
+	while y > Site.DOOR_H - 0.85:
 		g.box(Mats.painted("DoorSlat", Color(0.52, 0.54, 0.55), 0.45, 0.6), Vector3(X1 - 0.9, y, zc), Vector3(0.18, 0.22, Site.DOOR_Z1 - Site.DOOR_Z0 + 0.4))
 		y -= 0.25
 	for jz: float in [Site.DOOR_Z0 + 0.15, Site.DOOR_Z1 - 0.15]:
 		g.box(Mats.steel(), Vector3(X1 - 0.9, Site.DOOR_H * 0.5, jz), Vector3(0.5, Site.DOOR_H, 0.3))
 	# panel flashing bands round the clad walls
-	for yy: float in [3.2, 10.0, 17.0, 24.0]:
+	for yy: float in [3.2, 9.0, 15.0]:
 		g.box(flash, Vector3((X0 + X1) * 0.5, yy, Z0 - 0.08), Vector3(X1 - X0, 0.18, 0.16))
 		g.box(flash, Vector3((X0 + X1) * 0.5, yy, Z1 + 0.08), Vector3(X1 - X0, 0.18, 0.16))
 		g.box(flash, Vector3(X0 - 0.08, yy, (Z0 + Z1) * 0.5), Vector3(0.16, 0.18, Z1 - Z0))
@@ -314,7 +316,7 @@ static func exterior(root: Node3D) -> void:
 			var px := x + 1.6
 			g.cylinder(_galv(), Vector3(px, EAVE - 0.4, zz), Vector3(px, 0.6, zz), 0.16, 8)
 			g.cylinder(_galv(), Vector3(px, 0.6, zz), Vector3(px, 0.25, zz + signf(zz - Z0 - 1.0) * 0.5), 0.16, 8)
-			for yy: float in [6.0, 14.0, 22.0]:
+			for yy: float in [5.0, 11.0, 17.0]:
 				g.box(Mats.steel(), Vector3(px, yy, zz + signf(zz - Z0 - 1.0) * -0.35), Vector3(0.4, 0.12, 0.5))
 	# bulkhead lamps on the north pilasters
 	for x in range(int(X0) + 6, int(X1), 11):
@@ -342,7 +344,7 @@ static func exterior(root: Node3D) -> void:
 		var ang: float = PI * a
 		g.beam(Mats.yellow(), Vector3(lx - cos(ang) * 0.4, 2.6, lz - sin(ang) * 0.75), Vector3(lx - cos(ang) * 0.4, EAVE + 1.0, lz - sin(ang) * 0.75), 0.035)
 	# exit doors with canopies, lamps and steps on the north wall
-	for dx: float in [-140.0, -104.0]:
+	for dx: float in [-126.0, -96.0]:
 		g.box(Mats.navy(), Vector3(dx, 1.25, Z0 - 0.05), Vector3(2.0, 2.5, 0.12))
 		g.box(Mats.steel(), Vector3(dx, 1.25, Z0 - 0.1), Vector3(2.3, 2.7, 0.06))
 		g.box(Mats.steel(), Vector3(dx + 0.6, 1.1, Z0 - 0.2), Vector3(0.5, 0.06, 0.06))

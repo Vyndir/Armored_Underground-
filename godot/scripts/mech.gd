@@ -3,6 +3,11 @@ extends CharacterBody3D
 ## The player's frame. Walk, boost (hold), quick boost (dash), jump and hover on
 ## booster energy, and wade through the shallows. Movement is relative to the
 ## camera; the frame turns toward where it is going.
+##
+## Walking runs on a step clock (see MechTuning): each foot plant starts a short
+## loading phase where the weight settles onto that foot and speed eases off,
+## then the other leg swings through. Boost, quick boost, jump and hover are
+## unchanged by the gait. Quick boost and hover are optional test features.
 
 signal quick_boosted
 signal landed(impact: float)
@@ -10,7 +15,7 @@ signal footstep(side: int)
 signal entered_water
 signal left_water
 
-const WALK := 13.0
+const WALK := 13.5          # nominal walk; the live value is tuning.walk_speed
 const BOOST := 36.0
 const WADE := 0.45
 const ACCEL := 46.0
@@ -25,8 +30,16 @@ const HOVER_DRAIN := 0.3
 const REGEN := 0.4
 const GRAVITY := 30.0
 
+var tuning: MechTuning = MechTuning.v02()
 var cam_yaw := 0.0
 var input_enabled := true
+# gait state, read by the rig
+var gait_t := 0.0          # 0..1 through the current step (0 = foot plant)
+var gait_side := 0         # which foot is planted (0 left, 1 right)
+var gait_period := 0.36    # current step period
+var walk_amt := 0.0        # 0 standing .. 1 full walk
+var gait_mult := 1.0       # speed multiplier from weight transfer
+var jumps := 0
 var energy := 1.0
 var boosting := false
 var hovering := false
@@ -56,13 +69,15 @@ var sim_qb := false
 func _ready() -> void:
 	floor_max_angle = deg_to_rad(48.0)
 	floor_snap_length = 1.2
+	# capsule from the ground to the helmet top of the 6.8 m frame
 	var shape := CapsuleShape3D.new()
-	shape.radius = 2.1
-	shape.height = 8.4
+	shape.radius = 1.85
+	shape.height = Site.MECH_HEIGHT + 0.05
 	var cs := CollisionShape3D.new()
 	cs.shape = shape
-	cs.position = Vector3(0, 4.25, 0)
+	cs.position = Vector3(0, shape.height * 0.5, 0)
 	add_child(cs)
+	collision_mask = 1 | (1 << (BuildBounds.LAYER - 1))
 
 func speed() -> float:
 	return Vector2(velocity.x, velocity.z).length()
@@ -115,12 +130,12 @@ func _physics_process(dt: float) -> void:
 		overheated = false
 
 	# horizontal movement
-	var top := BOOST if boosting else WALK
+	var top := BOOST if boosting else tuning.walk_speed
 	if in_water and floor_now:
 		top *= WADE
 	var target := wish * top
 	var hv := _base_hv
-	var accel := (ACCEL * (1.4 if boosting else 1.0)) if floor_now else AIR_ACCEL * (2.2 if boosting else 1.0)
+	var accel := (tuning.accel * (1.4 if boosting else 1.0)) if floor_now else AIR_ACCEL * (2.2 if boosting else 1.0)
 	if not moving and floor_now:
 		accel *= 1.6
 	hv = hv.move_toward(target, accel * dt)
@@ -135,12 +150,15 @@ func _physics_process(dt: float) -> void:
 		quick_boosts += 1
 		quick_boosted.emit()
 	_qb_vel = _qb_vel.lerp(Vector3.ZERO, 1.0 - exp(-dt * 5.0))
-	velocity.x = hv.x + _qb_vel.x
-	velocity.z = hv.z + _qb_vel.z
+	# weight transfer: speed eases off while a foot takes the load (walking only)
+	var gm := gait_mult if floor_now and not boosting else 1.0
+	velocity.x = hv.x * gm + _qb_vel.x
+	velocity.z = hv.z * gm + _qb_vel.z
 
 	# vertical
 	if jump_pressed and floor_now and not overheated:
 		velocity.y = JUMP
+		jumps += 1
 	if hovering:
 		velocity.y += (HOVER - maxf(velocity.y, 0.0) * 2.0) * dt
 	velocity.y -= GRAVITY * dt
@@ -150,7 +168,7 @@ func _physics_process(dt: float) -> void:
 
 	move_and_slide()
 	# whatever the slide left us with, minus the burst, is next frame's steering velocity
-	_base_hv = Vector3(velocity.x - _qb_vel.x, 0, velocity.z - _qb_vel.z)
+	_base_hv = Vector3(velocity.x - _qb_vel.x, 0, velocity.z - _qb_vel.z) / maxf(gm, 0.01)
 	if _base_hv.length() > BOOST * 1.2:
 		_base_hv = _base_hv.limit_length(BOOST * 1.2)
 
@@ -164,16 +182,42 @@ func _physics_process(dt: float) -> void:
 	# facing: turn toward travel, or toward the camera when strafing slowly
 	if moving:
 		var tgt := atan2(-wish.x, -wish.z)
-		yaw = lerp_angle(yaw, tgt, 1.0 - exp(-dt * TURN * (1.6 if boosting else 1.0)))
+		yaw = lerp_angle(yaw, tgt, 1.0 - exp(-dt * tuning.turn_response * (1.6 if boosting else 1.0)))
 	rotation.y = yaw
 
-	# stride for animation and footsteps
-	var sp := speed()
-	if on and sp > 0.5 and not boosting:
-		var before := stride
-		stride += dt * sp * 0.16
-		if floori(before * 2.0) != floori(stride * 2.0):
-			footstep.emit(floori(stride * 2.0) % 2)
+	_gait(dt, on, moving)
+
+## Step clock: advance through the step, plant the other foot when it completes.
+func _gait(dt: float, on: bool, _moving: bool) -> void:
+	var sp := Vector2(_base_hv.x, _base_hv.z).length()
+	var walking := on and not boosting and sp > 0.6
+	walk_amt = move_toward(walk_amt, clampf(sp / tuning.walk_speed, 0.0, 1.0) if walking else 0.0, dt * 4.0)
+	var frac := clampf(sp / tuning.walk_speed, 0.05, 1.0)
+	if tuning.continuous_gait:
+		gait_period = tuning.step_period / frac
+	else:
+		gait_period = tuning.step_period * lerpf(tuning.slow_step_factor, 1.0, frac)
+	if walking or (gait_t > 0.0 and gait_t < 1.0 and walk_amt > 0.05):
+		gait_t += dt / gait_period
+		if gait_t >= 1.0:
+			gait_t -= 1.0
+			gait_side = 1 - gait_side
+			if walking:
+				footstep.emit(gait_side)
+				stride += 0.5
+	# speed eases off while the planted foot takes the load
+	var load := tuning.load_phase * gait_period / tuning.step_period if not tuning.continuous_gait else 0.0
+	var t_in := gait_t * gait_period
+	if load > 0.001 and t_in < load and walking:
+		gait_mult = 1.0 - tuning.load_speed_dip * sin(PI * t_in / load)
+	else:
+		gait_mult = 1.0
+
+## Current loading-phase length as a fraction of the step (0 for the continuous gait).
+func load_frac() -> float:
+	if tuning.continuous_gait or gait_period <= 0.0:
+		return 0.0
+	return clampf(tuning.load_phase * gait_period / tuning.step_period / gait_period, 0.0, 0.6)
 
 func teleport(p: Vector3, facing: float) -> void:
 	global_position = p

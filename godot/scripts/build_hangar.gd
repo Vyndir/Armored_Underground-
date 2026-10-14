@@ -10,7 +10,8 @@ const X1 := Site.HANGAR_X1
 const Z0 := Site.HANGAR_Z0
 const Z1 := Site.HANGAR_Z1
 const H := Site.HANGAR_H
-const EAVE := 29.0
+const EAVE := Site.HANGAR_H
+const CRANE_Y := 14.6     # crane bridge level: clear of a 6.8 m frame plus its antenna and a jump
 
 static var rng := RandomNumberGenerator.new()
 
@@ -22,14 +23,14 @@ static func build(root: Node3D, art: Dictionary) -> Dictionary:
 	interior_frame(root)
 	info["crane"] = crane(root)
 	info["rig"] = gantry(root, Site.SPAWN, true)
-	gantry(root, Vector3(-138, 0, -102), false)
-	gantry(root, Vector3(-138, 0, -44), false)
+	gantry(root, Site.BAYS[0], false)
+	gantry(root, Site.BAYS[2], false)
 	workshop(root, art)
 	info["workers"] = workers(root)
 	yard(root)
 	annex(root)
 	HangarDetail.build(root)
-	info["terminal"] = Vector3(-92.0, 0.0, -56.0)
+	info["terminal"] = Vector3(-86.0, 0.0, -47.0)
 	return info
 
 # ------------------------------------------------------------------ shell
@@ -58,8 +59,8 @@ static func shell(root: Node3D, art: Dictionary) -> void:
 		g.box(Mats.dark(), Vector3(X1 + 3.2, Site.DOOR_H - 0.3, z), Vector3(1.2, 0.6, 1.6))
 		g.box(Mats.lamp(), Vector3(X1 + 3.2, Site.DOOR_H - 0.62, z), Vector3(1.0, 0.05, 1.4))
 	# roller door rolled up inside, its bottom bar just visible
-	g.cylinder(Mats.dark(), Vector3(X1 - 2.0, Site.DOOR_H - 1.6, Site.DOOR_Z0), Vector3(X1 - 2.0, Site.DOOR_H - 1.6, Site.DOOR_Z1), 1.5, 16)
-	g.box(Mats.yellow(), Vector3(X1 - 0.9, Site.DOOR_H - 2.15, (Site.DOOR_Z0 + Site.DOOR_Z1) * 0.5), Vector3(0.4, 0.5, Site.DOOR_Z1 - Site.DOOR_Z0))
+	g.cylinder(Mats.dark(), Vector3(X1 - 2.0, Site.DOOR_H + 1.2, Site.DOOR_Z0), Vector3(X1 - 2.0, Site.DOOR_H + 1.2, Site.DOOR_Z1), 1.1, 16)
+	g.box(Mats.yellow(), Vector3(X1 - 0.9, Site.DOOR_H - 0.95, (Site.DOOR_Z0 + Site.DOOR_Z1) * 0.5), Vector3(0.4, 0.3, Site.DOOR_Z1 - Site.DOOR_Z0))
 	# external steel pilasters
 	for x in range(int(X0) + 6, int(X1), 11):
 		for zz: float in [Z0 - 0.35, Z1 + 0.35]:
@@ -74,9 +75,9 @@ static func shell(root: Node3D, art: Dictionary) -> void:
 	# ventilation louvres high on the side walls
 	for x in range(int(X0) + 12, int(X1) - 6, 22):
 		for zz: float in [Z0 - 0.15, Z1 + 0.15]:
-			g.box(Mats.dark(), Vector3(x, 22, zz), Vector3(4.0, 2.0, 0.3))
+			g.box(Mats.dark(), Vector3(x, EAVE - 6.0, zz), Vector3(4.0, 2.0, 0.3))
 			for s in 5:
-				g.box(Mats.steel(), Vector3(x, 21.3 + s * 0.35, zz + (0.2 if zz > 0 or zz > Z0 else -0.2) * signf(zz - Z0)), Vector3(3.8, 0.08, 0.25))
+				g.box(Mats.steel(), Vector3(x, EAVE - 6.7 + s * 0.35, zz + (0.2 if zz > 0 or zz > Z0 else -0.2) * signf(zz - Z0)), Vector3(3.8, 0.08, 0.25))
 	# personnel door and stair on the south wall
 	g.box(Mats.navy(), Vector3(-100, 1.4, Z1 + 0.1), Vector3(1.8, 2.8, 0.2))
 	g.box(Mats.lamp(), Vector3(-100, 3.3, Z1 + 0.35), Vector3(0.6, 0.15, 0.3))
@@ -93,16 +94,16 @@ static func shell(root: Node3D, art: Dictionary) -> void:
 	# the league banner and the bay numbers
 	var banner := MeshInstance3D.new()
 	var bq := QuadMesh.new()
-	bq.size = Vector2(15, 26)
+	bq.size = Vector2(11, 15)
 	banner.mesh = bq
 	var bm := StandardMaterial3D.new()
 	bm.albedo_texture = art.get("banner")
 	bm.roughness = 0.75
 	banner.material_override = bm
-	banner.position = Vector3(X1 + 0.3, 15.5, (Z0 + Site.DOOR_Z0) * 0.5 - 1.0)
+	banner.position = Vector3(X1 + 0.3, 10.5, (Z0 + Site.DOOR_Z0) * 0.5)
 	banner.rotation.y = PI * 0.5
 	root.add_child(banner)
-	for spec in [[Vector3(X1 + 0.25, 7.0, Site.DOOR_Z1 + 10.5), PI * 0.5, Vector2(10, 7)], [Vector3((X0 + X1) * 0.5, 21.5, Z1 + 0.25), 0.0, Vector2(14, 10)]]:
+	for spec in [[Vector3(X1 + 0.25, 6.0, (Site.DOOR_Z1 + Z1) * 0.5), PI * 0.5, Vector2(9, 6.3)], [Vector3((X0 + X1) * 0.5, 13.5, Z1 + 0.25), 0.0, Vector2(12, 8.5)]]:
 		var num := MeshInstance3D.new()
 		var nq := QuadMesh.new()
 		nq.size = spec[2]
@@ -117,7 +118,7 @@ static func shell(root: Node3D, art: Dictionary) -> void:
 		root.add_child(num)
 	var sign := MeshInstance3D.new()
 	var sq := QuadMesh.new()
-	sq.size = Vector2(26, 3.4)
+	sq.size = Vector2(maxf(Site.DOOR_W, 22.0), 2.9)
 	sign.mesh = sq
 	var sm := StandardMaterial3D.new()
 	sm.albedo_texture = art.get("sign")
@@ -125,7 +126,7 @@ static func shell(root: Node3D, art: Dictionary) -> void:
 	sm.emission_texture = art.get("sign")
 	sm.emission_energy_multiplier = 0.35
 	sign.material_override = sm
-	sign.position = Vector3(X1 + 5.8, 29.0, (Site.DOOR_Z0 + Site.DOOR_Z1) * 0.5)
+	sign.position = Vector3(X1 + 5.8, Site.DOOR_H + 3.0, (Site.DOOR_Z0 + Site.DOOR_Z1) * 0.5)
 	sign.rotation.y = PI * 0.5
 	root.add_child(sign)
 	# floodlights over the apron and warm interior spill
@@ -150,21 +151,21 @@ static func roof(root: Node3D) -> void:
 		g.aabb(Mats.steel(), Vector3(X0 + 8, EAVE, z - 1.8), Vector3(X1 - 8, EAVE + 0.75, z - 1.6))
 		g.aabb(Mats.steel(), Vector3(X0 + 8, EAVE, z + 1.6), Vector3(X1 - 8, EAVE + 0.75, z + 1.8))
 	# rooftop plant: AC units, exhaust stacks, a water tank, an antenna mast and railings
-	for spec: Vector3 in [Vector3(-150, EAVE, -110), Vector3(-138, EAVE, -110), Vector3(-126, EAVE, -110), Vector3(-150, EAVE, -40), Vector3(-104, EAVE, -38)]:
+	for spec: Vector3 in [Vector3(-130, EAVE, -102), Vector3(-119, EAVE, -102), Vector3(-130, EAVE, -46), Vector3(-108, EAVE, -46)]:
 		g.box(Mats.white(), spec + Vector3(0, 1.4, 0), Vector3(8, 2.8, 4.5))
 		for f in 2:
 			g.cylinder(Mats.dark(), spec + Vector3(-1.9 + f * 3.8, 2.8, 0), spec + Vector3(-1.9 + f * 3.8, 3.0, 0), 1.6, 16)
 		g.box(Mats.steel(), spec + Vector3(0, 0.15, 0), Vector3(8.6, 0.3, 5.0))
-	for spec: Vector3 in [Vector3(-118, EAVE, -60), Vector3(-114, EAVE, -60), Vector3(-110, EAVE, -60)]:
+	for spec: Vector3 in [Vector3(-100, EAVE, -60), Vector3(-96, EAVE, -60), Vector3(-92, EAVE, -60)]:
 		g.cylinder(Mats.steel(), spec, spec + Vector3(0, 7, 0), 0.6, 12)
 		g.cylinder(Mats.dark(), spec + Vector3(0, 7, 0), spec + Vector3(0, 7.6, 0), 0.75, 12)
-	var tank := Vector3(-95, EAVE, -105)
+	var tank := Vector3(-88, EAVE, -100)
 	for lx: float in [-2.5, 2.5]:
 		for lz: float in [-2.5, 2.5]:
 			g.beam(Mats.steel(), tank + Vector3(lx, 0, lz), tank + Vector3(lx * 0.8, 6, lz * 0.8), 0.3)
 	g.cylinder(Mats.white(), tank + Vector3(0, 6, 0), tank + Vector3(0, 11, 0), 3.4, 20)
 	g.cylinder(Mats.white(), tank + Vector3(0, 11, 0), tank + Vector3(0, 12.5, 0), 3.4, 20, 0.4)
-	var mast := Vector3(-150, EAVE, -60)
+	var mast := Vector3(-130, EAVE, -74)
 	g.cylinder(Mats.steel(), mast, mast + Vector3(0, 22, 0), 0.35, 8, 0.15)
 	for k in 6:
 		g.beam(Mats.steel(), mast + Vector3(-1.5, 3 + k * 3, 0), mast + Vector3(1.5, 3 + k * 3, 0), 0.12)
@@ -190,14 +191,14 @@ static func interior_frame(root: Node3D) -> void:
 	# columns along the side walls carrying crane rails
 	for x in range(int(X0) + 6, int(X1), 11):
 		for zz: float in [Z0 + 1.2, Z1 - 1.2]:
-			g.box(steel, Vector3(x, 13, zz), Vector3(1.0, 26, 1.0))
-			g.box(steel, Vector3(x, 20.6, zz + (1.0 if zz < 0 and zz < -70 else -1.0)), Vector3(0.8, 0.8, 2.0))
+			g.box(steel, Vector3(x, (EAVE - 2.6) * 0.5, zz), Vector3(1.0, EAVE - 2.6, 1.0))
+			g.box(steel, Vector3(x, CRANE_Y - 1.2, zz + (1.0 if zz < Site.SPAWN.z else -1.0)), Vector3(0.8, 0.8, 2.0))
 	for zz: float in [Z0 + 2.4, Z1 - 2.4]:
-		g.box(Mats.dark(), Vector3((X0 + X1) * 0.5, 21.2, zz), Vector3(X1 - X0 - 2, 0.8, 0.6))
-		g.box(Mats.steel(), Vector3((X0 + X1) * 0.5, 21.7, zz), Vector3(X1 - X0 - 2, 0.2, 0.25))
+		g.box(Mats.dark(), Vector3((X0 + X1) * 0.5, CRANE_Y - 0.6, zz), Vector3(X1 - X0 - 2, 0.8, 0.6))
+		g.box(Mats.steel(), Vector3((X0 + X1) * 0.5, CRANE_Y - 0.1, zz), Vector3(X1 - X0 - 2, 0.2, 0.25))
 	# roof trusses spanning the hall
 	for x in range(int(X0) + 6, int(X1), 11):
-		var y0 := 26.0
+		var y0 := EAVE - 2.6
 		var y1 := EAVE - 0.4
 		g.beam(steel, Vector3(x, y0, Z0 + 1), Vector3(x, y0, Z1 - 1), 0.5)
 		g.beam(steel, Vector3(x, y1, Z0 + 1), Vector3(x, y1, Z1 - 1), 0.4)
@@ -218,7 +219,7 @@ static func interior_frame(root: Node3D) -> void:
 	for x in range(int(X0) + 17, int(X1), 22):
 		for z in range(int(Z0) + 18, int(Z1) - 4, 32):
 			var l := SpotLight3D.new()
-			l.position = Vector3(x, 22.5, z)
+			l.position = Vector3(x, EAVE - 3.2, z)
 			l.rotation_degrees = Vector3(-90, 0, 0)
 			l.light_color = Color(1.0, 0.88, 0.72)
 			l.light_energy = 6.0
@@ -228,8 +229,8 @@ static func interior_frame(root: Node3D) -> void:
 			root.add_child(l)
 			idx += 1
 	var fill := OmniLight3D.new()
-	fill.position = Vector3(-120, 12, -74)
-	fill.omni_range = 70
+	fill.position = Vector3(-108, 9, -74)
+	fill.omni_range = 50
 	fill.light_energy = 1.2
 	fill.light_color = Color(0.95, 0.9, 0.85)
 	root.add_child(fill)
@@ -239,7 +240,7 @@ static func crane(root: Node3D) -> Node3D:
 	holder.name = "BridgeCrane"
 	root.add_child(holder)
 	var g := Geo.new()
-	var y := 22.2
+	var y := CRANE_Y
 	g.box(Mats.yellow(), Vector3(0, y + 1.0, 0), Vector3(2.4, 2.4, Z1 - Z0 - 5.0))
 	g.box(Mats.yellow(), Vector3(2.6, y + 1.0, 0), Vector3(2.4, 2.4, Z1 - Z0 - 5.0))
 	for zz: float in [Z0 + 2.4 - (Z0 + Z1) * 0.5, Z1 - 2.4 - (Z0 + Z1) * 0.5]:
@@ -254,14 +255,17 @@ static func crane(root: Node3D) -> Node3D:
 	gt.box(Mats.dark(), Vector3(1.3, y + 2.8, 0), Vector3(5.0, 1.6, 4.0))
 	gt.cylinder(Mats.steel(), Vector3(1.3, y + 2.0, -1.2), Vector3(1.3, y + 2.0, 1.2), 0.8, 16)
 	for s: float in [-0.4, 0.4]:
-		gt.beam(Mats.steel(), Vector3(1.3 + s, y + 1.5, 0), Vector3(1.3 + s, 12.0, 0), 0.05)
-	gt.box(Mats.yellow(), Vector3(1.3, 11.6, 0), Vector3(1.4, 1.6, 0.8))
-	gt.cylinder(Mats.steel(), Vector3(1.3, 10.8, 0), Vector3(1.3, 10.0, 0), 0.25, 8)
+		gt.beam(Mats.steel(), Vector3(1.3 + s, y + 1.5, 0), Vector3(1.3 + s, 9.8, 0), 0.05)
+	gt.box(Mats.yellow(), Vector3(1.3, 9.4, 0), Vector3(1.2, 1.2, 0.7))
+	gt.cylinder(Mats.steel(), Vector3(1.3, 8.8, 0), Vector3(1.3, 8.2, 0), 0.22, 8)
 	gt.commit(trolley, "Hook", true, false)
-	holder.position = Vector3(-116, 0, (Z0 + Z1) * 0.5)
+	holder.position = Vector3(-108, 0, (Z0 + Z1) * 0.5)
 	return holder
 
-## Yellow service gantry around a mech bay: towers, three deck levels, stairs and rails.
+## Yellow service gantry around a mech bay, proportioned to a 6.8 m frame: towers,
+## three deck levels at hip, chest and head height, stairs and rails.
+const TOWER_H := 9.2
+const DECKS := [2.3, 4.6, 6.9]
 static func gantry(root: Node3D, c: Vector3, open_front: bool) -> Dictionary:
 	var out := {}
 	# the spawn bay's arms, clamps and umbilicals are separate so the release sequence can move them
@@ -272,59 +276,59 @@ static func gantry(root: Node3D, c: Vector3, open_front: bool) -> Dictionary:
 	var grate := Mats.lit("Grating", Color(0.25, 0.26, 0.27), 0.6, 0.7, Tex.tread(), 0.6, Vector3(2, 2, 2))
 	for side: float in [-1.0, 1.0]:
 		var tx := c.x - 1.0
-		var tz := c.z + side * 7.5
-		for px: float in [-2.5, 2.5]:
-			for pz: float in [-1.6, 1.6]:
-				g.box(yel, Vector3(tx + px, 6.5, tz + pz), Vector3(0.35, 13.0, 0.35))
-		for ly: float in [3.6, 7.2, 10.8]:
-			g.box(grate, Vector3(tx, ly, tz), Vector3(5.4, 0.2, 3.6))
-			for pz: float in [-1.75, 1.75]:
-				g.beam(yel, Vector3(tx - 2.6, ly + 1.1, tz + pz), Vector3(tx + 2.6, ly + 1.1, tz + pz), 0.07)
-				g.beam(yel, Vector3(tx - 2.6, ly + 0.55, tz + pz), Vector3(tx + 2.6, ly + 0.55, tz + pz), 0.05)
+		var tz := c.z + side * 6.3
+		for px: float in [-2.1, 2.1]:
+			for pz: float in [-1.3, 1.3]:
+				g.box(yel, Vector3(tx + px, TOWER_H * 0.5, tz + pz), Vector3(0.3, TOWER_H, 0.3))
+		for ly: float in DECKS:
+			g.box(grate, Vector3(tx, ly, tz), Vector3(4.6, 0.2, 3.0))
+			for pz: float in [-1.45, 1.45]:
+				g.beam(yel, Vector3(tx - 2.2, ly + 1.1, tz + pz), Vector3(tx + 2.2, ly + 1.1, tz + pz), 0.07)
+				g.beam(yel, Vector3(tx - 2.2, ly + 0.55, tz + pz), Vector3(tx + 2.2, ly + 0.55, tz + pz), 0.05)
 			# cross bracing
-			g.beam(yel, Vector3(tx - 2.5, ly - 3.4, tz - side * 1.6), Vector3(tx + 2.5, ly, tz - side * 1.6), 0.12)
-		# stair flights up the outside face
+			g.beam(yel, Vector3(tx - 2.1, ly - 2.2, tz - side * 1.3), Vector3(tx + 2.1, ly, tz - side * 1.3), 0.1)
+		# stair flights up the outside face (2.3 m rise per flight)
 		for k in 3:
-			var y0 := k * 3.6
-			var a := Vector3(tx - 2.4 + (0.0 if k % 2 == 0 else 4.8), y0, tz + side * 2.6)
-			var b := Vector3(tx + 2.4 - (0.0 if k % 2 == 0 else 4.8), y0 + 3.6, tz + side * 2.6)
-			g.beam(grate, a, b, 1.1, 0.12)
-			g.beam(yel, a + Vector3(0, 1.0, side * 0.55), b + Vector3(0, 1.0, side * 0.55), 0.06)
-		# service arms reaching toward the mech's torso
+			var y0: float = k * 2.3
+			var a := Vector3(tx - 2.0 + (0.0 if k % 2 == 0 else 4.0), y0, tz + side * 2.2)
+			var b := Vector3(tx + 2.0 - (0.0 if k % 2 == 0 else 4.0), y0 + 2.3, tz + side * 2.2)
+			g.beam(grate, a, b, 1.0, 0.12)
+			g.beam(yel, a + Vector3(0, 1.0, side * 0.5), b + Vector3(0, 1.0, side * 0.5), 0.06)
+		# service arms reaching in to the frame's torso
 		var arm_g: Geo = ga if ga else g
-		arm_g.beam(yel, Vector3(tx, 7.0, tz - side * 1.8), Vector3(c.x, 6.4, c.z + side * 2.4), 0.25)
-		arm_g.box(Mats.dark(), Vector3(c.x, 6.4, c.z + side * 2.4), Vector3(0.6, 0.6, 0.6))
-		Geo.box_collider(root, Vector3(tx, 6.5, tz), Vector3(5.4, 13, 3.6))
+		arm_g.beam(yel, Vector3(tx, 5.6, tz - side * 1.5), Vector3(c.x, 5.0, c.z + side * 2.1), 0.22)
+		arm_g.box(Mats.dark(), Vector3(c.x, 5.0, c.z + side * 2.1), Vector3(0.5, 0.5, 0.5))
+		Geo.box_collider(root, Vector3(tx, TOWER_H * 0.5, tz), Vector3(4.6, TOWER_H, 3.0))
 		# deck kick plates, under-deck work lights, a tower-top beacon and a ground control pedestal
-		for ly: float in [3.6, 7.2, 10.8]:
-			for pz: float in [-1.75, 1.75]:
-				g.box(Mats.dark(), Vector3(tx, ly + 0.17, tz + pz), Vector3(5.4, 0.15, 0.04))
-			g.box(Mats.lamp(), Vector3(tx + 1.8, ly - 0.14, tz - side * 1.5), Vector3(1.2, 0.05, 0.18))
-		g.box(Mats.dark(), Vector3(tx + 2.5, 13.15, tz - side * 1.6), Vector3(0.3, 0.3, 0.3))
-		g.box(Mats.glow("GantryBeacon", Color(1.0, 0.55, 0.1), 6.0), Vector3(tx + 2.5, 13.45, tz - side * 1.6), Vector3(0.22, 0.3, 0.22))
-		var ped := Vector3(tx + 3.4, 0, tz - side * 2.4)
+		for ly: float in DECKS:
+			for pz: float in [-1.45, 1.45]:
+				g.box(Mats.dark(), Vector3(tx, ly + 0.17, tz + pz), Vector3(4.6, 0.15, 0.04))
+			g.box(Mats.lamp(), Vector3(tx + 1.5, ly - 0.14, tz - side * 1.2), Vector3(1.0, 0.05, 0.18))
+		g.box(Mats.dark(), Vector3(tx + 2.1, TOWER_H + 0.15, tz - side * 1.3), Vector3(0.3, 0.3, 0.3))
+		g.box(Mats.glow("GantryBeacon", Color(1.0, 0.55, 0.1), 6.0), Vector3(tx + 2.1, TOWER_H + 0.45, tz - side * 1.3), Vector3(0.22, 0.3, 0.22))
+		var ped := Vector3(tx + 3.0, 0, tz - side * 2.0)
 		g.box(Mats.painted("PedestalGrey", Color(0.5, 0.52, 0.52), 0.5, 0.4), ped + Vector3(0, 0.6, 0), Vector3(0.7, 1.2, 0.6))
 		g.box(Mats.dark(), ped + Vector3(0, 1.32, 0), Vector3(0.75, 0.25, 0.65), Basis(Vector3.FORWARD, 0.35))
 		g.box(Mats.glow("PedestalScreen", Color(0.2, 0.8, 1.0), 2.0), ped + Vector3(0.12, 1.36, 0), Vector3(0.4, 0.02, 0.45), Basis(Vector3.FORWARD, 0.35))
 		g.box(Mats.hazard(), ped + Vector3(0, 0.08, 0), Vector3(0.9, 0.16, 0.8))
 		# hose reel on the tower leg
-		g.cylinder(Mats.orange(), Vector3(tx - 2.5, 2.0, tz + side * 1.9), Vector3(tx - 2.5, 2.0, tz + side * 2.3), 0.6, 14)
-		g.cylinder(Mats.rubber(), Vector3(tx - 2.5, 2.0, tz + side * 1.95), Vector3(tx - 2.5, 2.0, tz + side * 2.25), 0.45, 14)
-	# rear walkway joining the towers at the top deck
-	g.box(grate, Vector3(c.x - 4.2, 10.8, c.z), Vector3(2.0, 0.2, 15.0))
-	g.beam(yel, Vector3(c.x - 5.2, 11.9, c.z - 7.5), Vector3(c.x - 5.2, 11.9, c.z + 7.5), 0.07)
+		g.cylinder(Mats.orange(), Vector3(tx - 2.1, 1.8, tz + side * 1.6), Vector3(tx - 2.1, 1.8, tz + side * 2.0), 0.55, 14)
+		g.cylinder(Mats.rubber(), Vector3(tx - 2.1, 1.8, tz + side * 1.65), Vector3(tx - 2.1, 1.8, tz + side * 1.95), 0.42, 14)
+	# rear walkway joining the towers at chest-deck level, under the chase camera's sightline
+	g.box(grate, Vector3(c.x - 3.6, DECKS[1], c.z), Vector3(1.8, 0.2, 12.6))
+	g.beam(yel, Vector3(c.x - 4.5, DECKS[1] + 1.1, c.z - 6.3), Vector3(c.x - 4.5, DECKS[1] + 1.1, c.z + 6.3), 0.07)
 	# floor clamps and the bay outline in hazard paint
 	for side: float in [-1.0, 1.0]:
 		var clamp_g: Geo = gc if gc else g
 		clamp_g.box(Mats.hazard(), Vector3(c.x, 0.15, c.z + side * 1.3), Vector3(3.2, 0.3, 1.2))
 	# hoses and umbilicals draped from the tower
 	for k in 3:
-		var a := Vector3(c.x - 1.0, 10.6 - k * 0.3, c.z + 6.0)
-		var b := Vector3(c.x - 0.3, 5.5 + k * 0.4, c.z + 1.6)
+		var a := Vector3(c.x - 1.0, 7.4 - k * 0.25, c.z + 5.0)
+		var b := Vector3(c.x - 0.3, 4.6 + k * 0.3, c.z + 1.4)
 		var prev := a
 		for s in range(1, 9):
 			var t := s / 8.0
-			var p := a.lerp(b, t) + Vector3(0, -sin(t * PI) * 1.4, 0)
+			var p := a.lerp(b, t) + Vector3(0, -sin(t * PI) * 1.0, 0)
 			(ga if ga else g).beam(Mats.rubber() if k != 1 else Mats.orange(), prev, p, 0.12)
 			prev = p
 	g.commit(root, "Gantry", true, false)
@@ -342,7 +346,7 @@ static func workshop(root: Node3D, art: Dictionary) -> void:
 	var red := Mats.painted("ToolRed", Color(0.6, 0.08, 0.06), 0.45, 0.3)
 	var bench_top := Mats.lit("BenchTop", Color(0.35, 0.3, 0.24), 0.7)
 	# workbenches and tool chests along the north wall
-	for x in range(-158, -88, 9):
+	for x in range(-136, -95, 9):
 		var z := Z0 + 3.0
 		g.box(Mats.steel(), Vector3(x, 0.45, z), Vector3(4.0, 0.9, 1.6))
 		g.box(bench_top, Vector3(x, 0.95, z), Vector3(4.2, 0.1, 1.8))
@@ -352,20 +356,20 @@ static func workshop(root: Node3D, art: Dictionary) -> void:
 			g.box(Mats.steel(), Vector3(x - 1.5 + t * 0.7, 2.6, Z0 + 1.15), Vector3(0.1, 0.6 + rng.randf() * 0.4, 0.08))
 		Geo.box_collider(root, Vector3(x, 0.5, z), Vector3(4.2, 1.0, 1.8))
 	# lockers on the west wall
-	for z in range(-112, -38, 2):
+	for z in range(-107, -40, 2):
 		g.box(Mats.painted("Locker", Color(0.3, 0.38, 0.45), 0.5, 0.4), Vector3(X0 + 1.4, 1.1, z), Vector3(0.9, 2.2, 1.9))
 		g.box(Mats.dark(), Vector3(X0 + 1.9, 1.7, z), Vector3(0.05, 0.6, 0.5))
 	# spare parts racks: armour plates, an arm, leg actuators
-	for x: float in [-158.0, -150.0]:
+	for x: float in [-100.0, -92.0]:
 		for lvl in 3:
 			g.box(Mats.yellow(), Vector3(x, 1.5 + lvl * 3.0, Z1 - 3.0), Vector3(6.0, 0.25, 3.0))
 			g.box(Mats.painted("MechGrey", Color(0.45, 0.47, 0.46), 0.45, 0.55), Vector3(x + rng.randf_range(-1.5, 1.5), 2.1 + lvl * 3.0, Z1 - 3.0), Vector3(2.4, 1.0, 1.8))
 		for px: float in [-2.8, 2.8]:
 			g.box(Mats.yellow(), Vector3(x + px, 4.5, Z1 - 3.0), Vector3(0.3, 9.0, 0.3))
-	g.cylinder(Mats.painted("MechGrey", Color(0.45, 0.47, 0.46), 0.45, 0.55), Vector3(-148, 0.9, -40), Vector3(-142, 0.9, -38), 0.9, 12)
-	g.cylinder(Mats.dark(), Vector3(-142, 0.9, -38), Vector3(-139, 1.0, -37), 0.6, 10)
+	g.cylinder(Mats.painted("MechGrey", Color(0.45, 0.47, 0.46), 0.45, 0.55), Vector3(-136, 0.9, -46), Vector3(-131, 0.9, -44), 0.8, 12)
+	g.cylinder(Mats.dark(), Vector3(-131, 0.9, -44), Vector3(-129, 1.0, -43.5), 0.55, 10)
 	# terminals with live screens
-	for spec in [[Vector3(-92.0, 0, -56.0), -PI * 0.5], [Vector3(-112.0, 0, -88.0), 0.0], [Vector3(-112.0, 0, -60.0), PI]]:
+	for spec in [[Vector3(-86.0, 0, -47.0), -PI * 0.5], [Vector3(-90.0, 0, -104.0), 0.0]]:
 		var p: Vector3 = spec[0]
 		g.box(Mats.dark(), p + Vector3(0, 0.6, 0), Vector3(1.4, 1.2, 1.0))
 		g.box(Mats.dark(), p + Vector3(0, 1.75, 0), Vector3(0.2, 1.2, 0.2))
@@ -384,11 +388,12 @@ static func workshop(root: Node3D, art: Dictionary) -> void:
 		scr.rotation.y = spec[1]
 		root.add_child(scr)
 	# ammo and parts crates, gas bottles, a cable reel, barrier stands
-	for k in 26:
-		var p := Vector3(rng.randf_range(-158, -88), 0, rng.randf_range(-115, -33))
-		if p.distance_to(Site.SPAWN) < 16 or absf(p.z - Site.SPAWN.z) < 9 and p.x > -130:
+	for k in 30:
+		var p := Vector3(rng.randf_range(-126, -84), 0, rng.randf_range(-106, -42))
+		# only along the side walls, clear of the bays and the routes to the door
+		if absf(p.z - Z0) > 6.5 and absf(p.z - Z1) > 6.5:
 			continue
-		if p.distance_to(Vector3(-138, 0, -102)) < 10 or p.distance_to(Vector3(-138, 0, -44)) < 10:
+		if p.x > -120.0 and p.x < -92.0:
 			continue
 		var s := Vector3(rng.randf_range(1.2, 2.4), rng.randf_range(0.8, 1.4), rng.randf_range(1.0, 1.6))
 		var m := Mats.olive() if rng.randf() < 0.6 else Mats.navy()
@@ -398,10 +403,10 @@ static func workshop(root: Node3D, art: Dictionary) -> void:
 			g.box(m, p + Vector3(0, s.y * 1.5, 0), s * 0.9, b)
 		Geo.box_collider(root, p + Vector3(0, s.y, 0), s * Vector3(1, 2, 1), b)
 	for k in 6:
-		var p := Vector3(-160.0 + k * 0.9, 0, -88.0)
+		var p := Vector3(-136.0 + k * 0.9, 0, -103.0)
 		g.cylinder(Mats.lit("GasGreen", Color(0.15, 0.4, 0.2), 0.4, 0.3), p, p + Vector3(0, 1.6, 0), 0.25, 10, 0.18)
-	g.cylinder(Mats.lit("ReelWood", Color(0.45, 0.32, 0.2), 0.8), Vector3(-100, 1.2, -108), Vector3(-100, 1.2, -106.6), 1.2, 16)
-	g.cylinder(Mats.rubber(), Vector3(-100, 1.2, -107.9), Vector3(-100, 1.2, -106.7), 0.9, 16)
+	g.cylinder(Mats.lit("ReelWood", Color(0.45, 0.32, 0.2), 0.8), Vector3(-82, 1.2, -104), Vector3(-82, 1.2, -102.6), 1.2, 16)
+	g.cylinder(Mats.rubber(), Vector3(-82, 1.2, -103.9), Vector3(-82, 1.2, -102.7), 0.9, 16)
 	g.commit(root, "Workshop", true, false)
 
 ## Crew in hi-vis: simple standing and working figures.
@@ -428,9 +433,9 @@ static func person_mesh(vest: Color) -> ArrayMesh:
 static func workers(root: Node3D) -> Array:
 	var out := []
 	var meshes := [person_mesh(Color(0.95, 0.75, 0.1)), person_mesh(Color(0.95, 0.42, 0.08))]
-	var spots := [Vector3(-118, 0, -66), Vector3(-121, 0, -82), Vector3(-148, 0, -112.5), Vector3(-130, 0, -112.5),
-		Vector3(-94, 0, -59), Vector3(-73, 0, -100), Vector3(-70, 0, -46), Vector3(-30, 0, 4), Vector3(-28, 0, 5.5),
-		Vector3(-10, 0, -120), Vector3(-55, 0, -150), Vector3(20, 0, -40)]
+	var spots := [Vector3(-104, 0, -64), Vector3(-108, 0, -82), Vector3(-127, 0, -104.5), Vector3(-118, 0, -104.5),
+		Vector3(-88, 0, -50), Vector3(-73, 0, -100), Vector3(-72, 0, -46), Vector3(-30, 0, 4), Vector3(-28, 0, 5.5),
+		Vector3(-10, 0, -120), Vector3(-55, 0, -150), Vector3(-31, 0, -230)]
 	for i in spots.size():
 		var mi := MeshInstance3D.new()
 		mi.mesh = meshes[i % 2]
@@ -447,7 +452,7 @@ static func yard(root: Node3D) -> void:
 	var g := Geo.new()
 	# portable cabins north of the hangar front
 	for k in 3:
-		var c := Vector3(-60.0 + k * 13.5, 0, -150.0)
+		var c := Vector3(-160.0 + k * 13.5, 0, -128.0)
 		cabin(g, c)
 		Geo.box_collider(root, c + Vector3(0, 1.6, 0), Vector3(12.2, 3.2, 3.0))
 	# dark equipment cases, like the concept's foreground stacks
@@ -465,12 +470,12 @@ static func yard(root: Node3D) -> void:
 		g.box(m, c + Vector3(0, 0.8, 0), Vector3(1.6, 1.6, 1.2))
 		g.box(Mats.dark(), c + Vector3(0, 0.1, 0), Vector3(1.7, 0.2, 1.3))
 	# generators and a fuel bowser
-	for c: Vector3 in [Vector3(-60, 0, -112), Vector3(-60, 0, -28)]:
+	for c: Vector3 in [Vector3(-160, 0, -112), Vector3(-75, 0, -26)]:
 		g.box(Mats.painted("GenYellow", Color(0.85, 0.62, 0.1), 0.5, 0.3), c + Vector3(0, 1.3, 0), Vector3(5.0, 2.6, 2.2))
 		g.box(Mats.dark(), c + Vector3(2.2, 1.3, 0), Vector3(0.6, 1.8, 1.8))
 		g.cylinder(Mats.dark(), c + Vector3(-1.5, 2.6, 0.6), c + Vector3(-1.5, 3.6, 0.6), 0.15, 8)
 		Geo.box_collider(root, c + Vector3(0, 1.3, 0), Vector3(5.0, 2.6, 2.2))
-	var fb := Vector3(-35, 0, -132)
+	var fb := Vector3(-160, 0, -178)
 	g.cylinder(Mats.white(), fb + Vector3(-3, 1.8, 0), fb + Vector3(3, 1.8, 0), 1.3, 18)
 	g.box(Mats.dark(), fb + Vector3(0, 0.5, 0), Vector3(7.0, 0.4, 2.0))
 	for wx: float in [-2.2, 2.2]:
@@ -487,10 +492,10 @@ static func yard(root: Node3D) -> void:
 			g.beam(Mats.yellow(), p, p + Vector3(0, 1.1, 0), 0.08)
 		g.beam(Mats.yellow(), a + Vector3(0, 1.1, 0), b + Vector3(0, 1.1, 0), 0.07)
 		g.beam(Mats.yellow(), a + Vector3(0, 0.6, 0), b + Vector3(0, 0.6, 0), 0.05)
-	pickup(g, Vector3(-28, 0, 0), deg_to_rad(-30))
-	Geo.box_collider(root, Vector3(-28, 1.0, 0), Vector3(5.6, 2.0, 2.2), Basis(Vector3.UP, deg_to_rad(-30)))
-	forklift(g, Vector3(-64, 0, -40), deg_to_rad(80))
-	Geo.box_collider(root, Vector3(-64, 1.2, -40), Vector3(3.0, 2.4, 1.6), Basis(Vector3.UP, deg_to_rad(80)))
+	pickup(g, Vector3(-150, 0, 40), deg_to_rad(-30))
+	Geo.box_collider(root, Vector3(-150, 1.0, 40), Vector3(5.6, 2.0, 2.2), Basis(Vector3.UP, deg_to_rad(-30)))
+	forklift(g, Vector3(-160, 0, 52), deg_to_rad(80))
+	Geo.box_collider(root, Vector3(-160, 1.2, 52), Vector3(3.0, 2.4, 1.6), Basis(Vector3.UP, deg_to_rad(80)))
 	g.commit(root, "Yard", true, false)
 
 static func cabin(g: Geo, c: Vector3) -> void:
@@ -534,8 +539,8 @@ static func forklift(g: Geo, p: Vector3, yaw: float) -> void:
 
 static func annex(root: Node3D) -> void:
 	var g := Geo.new()
-	var x0 := -150.0
-	var x1 := -96.0
+	var x0 := -136.0
+	var x1 := -88.0
 	var z0 := Z1
 	var z1 := Z1 + 16.0
 	var cl := Mats.corrugated("CladdingWarm", Color(0.74, 0.72, 0.68), 10)

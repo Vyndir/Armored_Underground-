@@ -7,6 +7,7 @@ uniform vec3 zenith : source_color = vec3(0.17, 0.4, 0.82);
 uniform vec3 horizon : source_color = vec3(0.72, 0.83, 0.95);
 uniform vec3 ground : source_color = vec3(0.42, 0.47, 0.5);
 uniform float cloud_cover = 0.5;
+uniform float cloud_light = 1.0;   // overall cloud brightness (low at night)
 
 // sin-free hash: stays stable at the large coordinates of the high octaves
 float hash(vec2 p) {
@@ -43,6 +44,7 @@ void sky() {
 		float shade = fbm(cp * 1.8 + 4.0);
 		vec3 cc = mix(vec3(1.0), vec3(0.72, 0.76, 0.84), shade * 0.8);
 		cc += vec3(1.0, 0.95, 0.85) * pow(sdot, 5.0) * 0.4;
+		cc *= cloud_light;
 		col = mix(col, cc, cover * 0.95);
 	}
 	COLOR = col;

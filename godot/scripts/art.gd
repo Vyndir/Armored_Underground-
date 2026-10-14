@@ -28,13 +28,13 @@ static func apron_paint(c: Control) -> void:
 	var m := sx   # pixels per metre
 	# guide line from the bay out of the doors, across the apron and down to the slipway
 	var lane := PackedVector2Array()
-	var pts := [Vector2(-140, -74), Vector2(-78, -74), Vector2(-45, -74), Vector2(-22, -60), Vector2(-8, -30), Vector2(-4, 0), Vector2(-2, 26), Vector2(8, 33)]
+	var pts := [Vector2(-120, -74), Vector2(-78, -74), Vector2(-48, -74), Vector2(-24, -40), Vector2(-24, -10), Vector2(-6, 20), Vector2(4, 33)]
 	for p in pts:
 		lane.append(P.call(p.x, p.y))
 	c.draw_polyline(lane, black, 0.55 * m, true)
 	c.draw_polyline(lane, yellow, 0.32 * m, true)
 	# branch toward the north apron (boost course)
-	var north := PackedVector2Array([P.call(-45, -74), P.call(-30, -95), P.call(-12, -125), P.call(0, -150)])
+	var north := PackedVector2Array([P.call(-48, -74), P.call(-10, -112), P.call(20, -146), P.call(27, -150), P.call(27, -70), P.call(18, -50)])
 	c.draw_polyline(north, black, 0.55 * m, true)
 	c.draw_polyline(north, yellow, 0.32 * m, true)
 	# white chevrons along the lane, pointing toward the water
@@ -51,9 +51,12 @@ static func apron_paint(c: Control) -> void:
 				P.call(cpt.x + right.x * 2.6 - dirv.x * 1.0, cpt.y + right.y * 2.6 - dirv.y * 1.0), P.call(tip.x - dirv.x * 1.0, tip.y - dirv.y * 1.0), P.call(cpt.x - right.x * 2.6 - dirv.x * 1.0, cpt.y - right.y * 2.6 - dirv.y * 1.0)])
 			c.draw_colored_polygon(poly, Color(white.r, white.g, white.b, 0.9))
 	# quay edge line, 2.5 m back from the edge
-	c.draw_line(P.call(Site.APRON_X1 - 2.5, Site.APRON_Z0), P.call(Site.APRON_X1 - 2.5, Site.SLIP_Z0 - 2.5), yellow, 0.25 * m)
+	c.draw_line(P.call(Site.APRON_X1 - 2.5, Site.APRON_Z0), P.call(Site.APRON_X1 - 2.5, Site.RAMP_Z0 - 2.5), yellow, 0.25 * m)
+	c.draw_line(P.call(Site.APRON_X1 - 2.5, Site.RAMP_Z1 + 2.5), P.call(Site.APRON_X1 - 2.5, Site.SLIP_Z0 - 2.5), yellow, 0.25 * m)
+	# shoreline test strip edge
+	c.draw_line(P.call(Site.STRIP_X0, Site.APRON_Z0), P.call(Site.STRIP_X0, Site.RAMP_Z0 - 2.5), white, 0.2 * m)
 	# hatched no-go boxes: slipway head, cabins, generators
-	for r in [Rect2(-4, Site.SLIP_Z0 - 2, 6, Site.SLIP_Z1 - Site.SLIP_Z0 + 4), Rect2(-68, -154, 40, 8), Rect2(-64, -115, 8, 6), Rect2(-64, -31, 8, 6)]:
+	for r in [Rect2(-4, Site.SLIP_Z0 - 2, 6, Site.SLIP_Z1 - Site.SLIP_Z0 + 4), Rect2(8, Site.RAMP_Z0 - 2, 6, Site.RAMP_Z1 - Site.RAMP_Z0 + 4), Rect2(-167, -131, 42, 6), Rect2(-163, -114, 6, 5), Rect2(-78, -28, 6, 5)]:
 		var rect: Rect2 = r
 		var a: Vector2 = P.call(rect.position.x, rect.position.y)
 		var b: Vector2 = P.call(rect.end.x, rect.end.y)
@@ -67,7 +70,7 @@ static func apron_paint(c: Control) -> void:
 			x += step
 	# training pads: painted rings with numbers where the onboarding stops
 	var f := Tex.paint_font()
-	var pads := [[Vector2(-58, -74), "1"], [Vector2(-2, -138), "2"], [Vector2(18, -60), "3"]]
+	var pads := [[Vector2(-48, -74), "1"], [Vector2(27, -150), "2"], [Vector2(-24, -10), "3"]]
 	for pd in pads:
 		var cpos: Vector2 = P.call(pd[0].x, pd[0].y)
 		c.draw_arc(cpos, 7.0 * m, 0, TAU, 72, white, 0.35 * m, true)
@@ -76,12 +79,13 @@ static func apron_paint(c: Control) -> void:
 		var tw := f.get_string_size(pd[1], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		c.draw_string(f, cpos + Vector2(-tw * 0.5, fs * 0.36), pd[1], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, white)
 	# bay outlines inside the hangar
-	for bz: float in [-102.0, -74.0, -44.0]:
-		var a: Vector2 = P.call(-152, bz - 9)
-		var b: Vector2 = P.call(-112, bz + 9)
+	for bi in Site.BAYS.size():
+		var bc: Vector3 = Site.BAYS[bi]
+		var a: Vector2 = P.call(bc.x - 6, bc.z - 4.5)
+		var b: Vector2 = P.call(bc.x + 12, bc.z + 4.5)
 		c.draw_rect(Rect2(a, b - a), yellow, false, 0.3 * m)
-		var fs := int(3.5 * m)
-		c.draw_string(f, P.call(-150, bz + 7.6), "BAY %02d" % int(3 + (bz + 102) / 28.0), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, yellow)
+		var fs := int(2.4 * m)
+		c.draw_string(f, P.call(bc.x + 4, bc.z + 3.6), "BAY %02d" % (3 + bi), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, yellow)
 	# big bay number in front of the doors
 	var fs2 := int(16 * m)
 	var t := "03"

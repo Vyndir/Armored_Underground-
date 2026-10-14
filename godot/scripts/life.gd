@@ -229,7 +229,7 @@ func _process(dt: float) -> void:
 		_crane.position.x = x
 		var trolley := _crane.get_node_or_null("Trolley") as Node3D
 		if trolley:
-			trolley.position.z = sin(_crane_t * 0.15) * 22.0
+			trolley.position.z = sin(_crane_t * 0.15) * 15.0
 	if _windsock:
 		_windsock.rotation_degrees = Vector3(sin(t * 1.3) * 6.0, sin(t * 0.4) * 10.0, 80.0 + sin(t * 2.1) * 4.0)
 	if _beam:

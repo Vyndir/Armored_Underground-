@@ -1,57 +1,72 @@
 class_name BuildSite
 extends RefCounted
-## Terrain, bay water, the apron and quay, the slipway, buoy line, lamp posts,
-## rocks, pines and the far side of the bay.
+## Terrain (near ground with collision, coarse far land on both banks), bay water,
+## the yard and the north quay yard, the quay with its parapet, the slipway and
+## the north ramp onto the training shelf, and lamp posts.
 
-static func terrain(root: Node3D) -> void:
-	var mat := Mats.shader("Terrain", "res://shaders/terrain.gdshader", {
+static func _terrain_mat() -> Material:
+	return Mats.shader("Terrain", "res://shaders/terrain.gdshader", {
 		"noise_a": Tex.noise(0.01, 31), "noise_b": Tex.noise(0.05, 32),
 		"rock_nrm": Tex.noise(0.08, 33, 512, true, 8.0), "water_level": Site.WATER_Y,
 	})
-	var x0 := -1000.0
-	var z0 := -1000.0
-	var step := 6.0
-	var n := 230
-	var h := []
-	h.resize((n + 1) * (n + 1))
-	for j in n + 1:
-		for i in n + 1:
-			h[j * (n + 1) + i] = Site.ground(x0 + i * step, z0 + j * step)
+
+## Height-field mesh over a grid; `height` is a Callable(x, z) -> float.
+static func _grid(root: Node3D, name: String, x0: float, z0: float, nx: int, nz: int, step: float, height: Callable) -> PackedFloat32Array:
+	var h := PackedFloat32Array()
+	h.resize((nx + 1) * (nz + 1))
+	for j in nz + 1:
+		for i in nx + 1:
+			h[j * (nx + 1) + i] = height.call(x0 + i * step, z0 + j * step)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for j in n + 1:
-		for i in n + 1:
+	for j in nz + 1:
+		for i in nx + 1:
 			var x := x0 + i * step
 			var z := z0 + j * step
-			var hl: float = h[j * (n + 1) + maxi(i - 1, 0)]
-			var hr: float = h[j * (n + 1) + mini(i + 1, n)]
-			var hd: float = h[maxi(j - 1, 0) * (n + 1) + i]
-			var hu: float = h[mini(j + 1, n) * (n + 1) + i]
+			var hl: float = h[j * (nx + 1) + maxi(i - 1, 0)]
+			var hr: float = h[j * (nx + 1) + mini(i + 1, nx)]
+			var hd: float = h[maxi(j - 1, 0) * (nx + 1) + i]
+			var hu: float = h[mini(j + 1, nz) * (nx + 1) + i]
 			st.set_normal(Vector3(hl - hr, 2.0 * step, hd - hu).normalized())
 			st.set_uv(Vector2(x, z) / 8.0)
-			st.add_vertex(Vector3(x, h[j * (n + 1) + i], z))
-	for j in n:
-		for i in n:
-			var a := j * (n + 1) + i
+			st.add_vertex(Vector3(x, h[j * (nx + 1) + i], z))
+	for j in nz:
+		for i in nx:
+			var a := j * (nx + 1) + i
 			var b := a + 1
-			var c := a + n + 1
+			var c := a + nx + 1
 			var d := c + 1
 			# clockwise seen from above (+Y) for Godot front faces
 			st.add_index(a); st.add_index(b); st.add_index(c)
 			st.add_index(b); st.add_index(d); st.add_index(c)
 	st.generate_tangents()
-	st.set_material(mat)
+	st.set_material(_terrain_mat())
 	var mi := MeshInstance3D.new()
-	mi.name = "Terrain"
+	mi.name = name
 	mi.mesh = st.commit()
 	root.add_child(mi)
-	# collision from the same heights (trimesh over the playable part of the map)
+	return h
+
+static func terrain(root: Node3D) -> void:
+	var x0 := -1000.0
+	var z0 := -1000.0
+	var step := 6.0
+	var n := 230
+	var h := _grid(root, "Terrain", x0, z0, n, n, step, func(x: float, z: float) -> float: return Site.ground(x, z))
+	# coarse land north to the bridge and beyond (scenery, no collision); it
+	# overlaps under the near grid by one coarse row to hide the seam
+	_grid(root, "TerrainNorth", -1000.0, -2600.0, 69, 81, 20.0, func(x: float, z: float) -> float: return Site.ground(x, z) - (0.3 if z > -1010.0 else 0.0))
+	# the far (Downtown) bank
+	_grid(root, "TerrainEast", 1000.0, -3400.0, 65, 120, 40.0, func(x: float, z: float) -> float: return Site.east_ground(x, z))
+	(root.get_node("TerrainEast") as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	(root.get_node("TerrainNorth") as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# collision from the same heights over the playable part of the map
 	var faces := PackedVector3Array()
 	for j in n:
 		for i in n:
 			var x := x0 + i * step
 			var z := z0 + j * step
-			if x < -500.0 or x > 420.0 or z < -560.0 or z > 300.0:
+			if x < -320.0 or x > 260.0 or z < -560.0 or z > 200.0:
 				continue
 			var pa := Vector3(x, h[j * (n + 1) + i], z)
 			var pb := Vector3(x + step, h[j * (n + 1) + i + 1], z)
@@ -73,7 +88,7 @@ static func water(root: Node3D) -> void:
 		"wave_a": Tex.noise(0.02, 41, 512, true, 3.0), "wave_b": Tex.noise(0.05, 42, 512, true, 2.0),
 		"foam_noise": Tex.noise(0.04, 43),
 	})
-	# fine grid near the site for the swell, coarse plane beyond
+	# fine grid near the site for the swell, coarse planes beyond
 	var near := PlaneMesh.new()
 	near.size = Vector2(900, 900)
 	near.subdivide_width = 180
@@ -105,113 +120,133 @@ static func water(root: Node3D) -> void:
 	outer.position = Vector3(150, Site.WATER_Y - 0.05, -150)
 	outer.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(outer)
-	# shallow-water floor so mechs wade instead of sinking
-	Geo.box_collider(root, Vector3(400, Site.WATER_Y - 3.6 - 2.0, -100), Vector3(2400, 4, 2400))
-	# soft bounds: an invisible ring around the training area
-	for k in 24:
-		var a := TAU * k / 24.0
-		var c := Vector3(-40 + cos(a) * 520.0, 60, -60 + sin(a) * 520.0)
-		Geo.box_collider(root, c, Vector3(4, 200, 150), Basis(Vector3.UP, -a))
+	# the training shelf floor: exactly where the visible sea bed is
+	var m := Site.SHELF_MARGIN
+	Geo.box_collider(root, Vector3((Site.SHELF_X0 + Site.SHELF_X1 + m) * 0.5, Site.SHELF_FLOOR - 1.0, (Site.SHELF_Z0 + Site.SHELF_Z1) * 0.5),
+		Vector3(Site.SHELF_X1 + m - Site.SHELF_X0, 2.0, Site.SHELF_Z1 - Site.SHELF_Z0 + m * 2.0))
 
-# ------------------------------------------------------------------ apron, quay and slipway
+# ------------------------------------------------------------------ yard, quay, slipway and ramp
 static func apron(root: Node3D, markings: Texture2D) -> void:
 	var conc := Mats.concrete("Apron", Color(0.62, 0.6, 0.57), 0.45)
 	conc.set_shader_parameter("markings", markings)
 	conc.set_shader_parameter("markings_rect", Vector4(Site.APRON_X0, Site.APRON_Z0, Site.APRON_X1 - Site.APRON_X0, Site.APRON_Z1 - Site.APRON_Z0))
 	conc.set_shader_parameter("use_markings", 1.0)
+	var north := Mats.concrete("NorthYard", Color(0.6, 0.59, 0.56), 0.4)
 	var wall := Mats.concrete("QuayWall", Color(0.55, 0.54, 0.5), 0.0)
 	var g := Geo.new()
 	var y := 0.0
 	var base := -9.0
-	# apron top in strips so the slipway corridor can be cut out
-	var strips := [[Site.APRON_Z0, Site.SLIP_Z0, Site.APRON_X1], [Site.SLIP_Z0, Site.SLIP_Z1, Site.SLIP_X0], [Site.SLIP_Z1, Site.APRON_Z1, Site.APRON_X1 - 12.0]]
+	# paving in strips so the slipway and ramp corridors can be cut out of the quay edge:
+	# [z0, z1, seaward x, west x, material]
+	var strips := [[Site.SLICE_Z, Site.APRON_Z0, Site.APRON_X1, Site.NYARD_X0, north],
+		[Site.APRON_Z0, Site.RAMP_Z0, Site.APRON_X1, Site.APRON_X0, conc], [Site.RAMP_Z0, Site.RAMP_Z1, Site.RAMP_X0, Site.APRON_X0, conc],
+		[Site.RAMP_Z1, Site.SLIP_Z0, Site.APRON_X1, Site.APRON_X0, conc], [Site.SLIP_Z0, Site.SLIP_Z1, Site.SLIP_X0, Site.APRON_X0, conc],
+		[Site.SLIP_Z1, Site.APRON_Z1, Site.APRON_X1 - 12.0, Site.APRON_X0, conc]]
 	for s in strips:
 		var z0: float = s[0]
 		var z1: float = s[1]
 		var xe: float = s[2]
+		var xw: float = s[3]
+		var mat: Material = s[4]
 		var steps := int((z1 - z0) / 12.0) + 1
 		for k in steps:
 			var za := lerpf(z0, z1, float(k) / steps)
 			var zb := lerpf(z0, z1, float(k + 1) / steps)
-			var xs := 18.0
-			var x := Site.APRON_X0
+			var x := xw
 			while x < xe - 0.01:
-				var xb := minf(x + xs, xe)
-				g.quad(conc, Vector3(x, y, za), Vector3(xb, y, za), Vector3(xb, y, zb), Vector3(x, y, zb), Vector3.UP, 8.0)
+				var xb := minf(x + 18.0, xe)
+				g.quad(mat, Vector3(x, y, za), Vector3(xb, y, za), Vector3(xb, y, zb), Vector3(x, y, zb), Vector3.UP, 8.0)
 				x = xb
 		# seaward face of the quay / apron edge
 		g.quad(wall, Vector3(xe, base, z0), Vector3(xe, base, z1), Vector3(xe, y, z1), Vector3(xe, y, z0), Vector3.RIGHT, 6.0)
-		Geo.box_collider(root, Vector3((Site.APRON_X0 + xe) * 0.5, y - 4.0, (z0 + z1) * 0.5), Vector3(xe - Site.APRON_X0, 8.0, z1 - z0))
-	# slipway corridor side walls
-	for zz: float in [Site.SLIP_Z0, Site.SLIP_Z1]:
-		var n := Vector3(0, 0, 1) if zz == Site.SLIP_Z0 else Vector3(0, 0, -1)
-		var steps2 := 10
-		for k in steps2:
-			var xa := lerpf(Site.SLIP_X0, Site.APRON_X1 if zz == Site.SLIP_Z0 else Site.APRON_X1 - 12.0, float(k) / steps2)
-			var xb := lerpf(Site.SLIP_X0, Site.APRON_X1 if zz == Site.SLIP_Z0 else Site.APRON_X1 - 12.0, float(k + 1) / steps2)
-			g.quad(wall, Vector3(xa, Site.slip_y(xa) - 0.2, zz), Vector3(xb, Site.slip_y(xb) - 0.2, zz), Vector3(xb, y, zz), Vector3(xa, y, zz), -n, 6.0)
-	# south edge drops to the rocks
+		Geo.box_collider(root, Vector3((xw + xe) * 0.5, y - 4.0, (z0 + z1) * 0.5), Vector3(xe - xw, 8.0, z1 - z0))
+	# west edge of the north yard and the south edge of the yard
+	g.quad(wall, Vector3(Site.NYARD_X0, base, Site.SLICE_Z), Vector3(Site.NYARD_X0, base, Site.APRON_Z0), Vector3(Site.NYARD_X0, y, Site.APRON_Z0), Vector3(Site.NYARD_X0, y, Site.SLICE_Z), Vector3.LEFT, 6.0)
 	g.quad(wall, Vector3(Site.APRON_X0, base, Site.APRON_Z1), Vector3(Site.APRON_X1 - 12.0, base, Site.APRON_Z1), Vector3(Site.APRON_X1 - 12.0, y, Site.APRON_Z1), Vector3(Site.APRON_X0, y, Site.APRON_Z1), Vector3.BACK, 6.0)
 	g.commit(root, "Apron", true, false)
+	_ramp(root, "Slipway", Site.SLIP_X0, Site.SLIP_X1, Site.SLIP_Z0, Site.SLIP_Z1, Site.APRON_X1, Site.APRON_X1 - 12.0)
+	_ramp(root, "NorthRamp", Site.RAMP_X0, Site.RAMP_X1, Site.RAMP_Z0, Site.RAMP_Z1, Site.APRON_X1, Site.APRON_X1)
 
-	# slipway: grooved ramp down into the water, with kerbs
+## A grooved concrete ramp from yard level down onto the shelf floor, with kerbs,
+## side walls where it cuts through the quay, and a sloped collider.
+static func _ramp(root: Node3D, name: String, xa0: float, xa1: float, z0: float, z1: float, wall_end0: float, wall_end1: float) -> void:
 	var slip := Mats.concrete("Slipway", Color(0.58, 0.56, 0.52), 0.8, 1.6)
-	var gs := Geo.new()
-	var segs := 16
+	var wall := Mats.concrete("QuayWall", Color(0.55, 0.54, 0.5), 0.0)
+	var yf := func(x: float) -> float: return lerpf(0.0, Site.SHELF_FLOOR, clampf((x - xa0) / (xa1 - xa0), 0.0, 1.0))
+	var g := Geo.new()
+	var segs := 14
 	for k in segs:
-		var xa := lerpf(Site.SLIP_X0, Site.SLIP_X1, float(k) / segs)
-		var xb := lerpf(Site.SLIP_X0, Site.SLIP_X1, float(k + 1) / segs)
-		gs.quad(slip, Vector3(xa, Site.slip_y(xa), Site.SLIP_Z0), Vector3(xb, Site.slip_y(xb), Site.SLIP_Z0), Vector3(xb, Site.slip_y(xb), Site.SLIP_Z1), Vector3(xa, Site.slip_y(xa), Site.SLIP_Z1), Vector3.UP, 6.0)
-	for zz: float in [Site.SLIP_Z0 - 1.2, Site.SLIP_Z1]:
+		var xa := lerpf(xa0, xa1, float(k) / segs)
+		var xb := lerpf(xa0, xa1, float(k + 1) / segs)
+		var ya: float = yf.call(xa)
+		var yb: float = yf.call(xb)
+		g.quad(slip, Vector3(xa, ya, z0), Vector3(xb, yb, z0), Vector3(xb, yb, z1), Vector3(xa, ya, z1), Vector3.UP, 6.0)
+	# side walls through the quay
+	for zz: float in [z0, z1]:
+		var n := Vector3(0, 0, 1) if zz == z0 else Vector3(0, 0, -1)
+		var xend := wall_end0 if zz == z0 else wall_end1
+		for k in 10:
+			var xa := lerpf(xa0, xend, float(k) / 10)
+			var xb := lerpf(xa0, xend, float(k + 1) / 10)
+			g.quad(wall, Vector3(xa, yf.call(xa) - 0.2, zz), Vector3(xb, yf.call(xb) - 0.2, zz), Vector3(xb, 0, zz), Vector3(xa, 0, zz), -n, 6.0)
+	# kerbs along both sides
+	for zz: float in [z0 - 0.6, z1 + 0.6]:
 		for k in segs:
-			var xa := lerpf(Site.SLIP_X0, Site.SLIP_X1, float(k) / segs)
-			var xb := lerpf(Site.SLIP_X0, Site.SLIP_X1, float(k + 1) / segs)
-			var c := Vector3((xa + xb) * 0.5, (Site.slip_y(xa) + Site.slip_y(xb)) * 0.5 + 0.4, zz + 0.6)
-			var dirv := Vector3(xb - xa, Site.slip_y(xb) - Site.slip_y(xa), 0)
-			gs.box(wall, c, Vector3(dirv.length() + 0.05, 1.4, 1.2), Basis(dirv.normalized(), Vector3.UP.rotated(Vector3.BACK, atan2(dirv.y, dirv.x)), Vector3.BACK))
-	gs.commit(root, "Slipway", true, false)
-	var mid := Vector3((Site.SLIP_X0 + Site.SLIP_X1) * 0.5, (0.0 + Site.SLIP_BOTTOM) * 0.5 - 0.5, (Site.SLIP_Z0 + Site.SLIP_Z1) * 0.5)
-	var dir := Vector3(Site.SLIP_X1 - Site.SLIP_X0, Site.SLIP_BOTTOM, 0)
+			var xa := lerpf(xa0, xa1, float(k) / segs)
+			var xb := lerpf(xa0, xa1, float(k + 1) / segs)
+			var dirv := Vector3(xb - xa, yf.call(xb) - yf.call(xa), 0)
+			var c := Vector3((xa + xb) * 0.5, (yf.call(xa) + yf.call(xb)) * 0.5 + 0.35, zz)
+			g.box(wall, c, Vector3(dirv.length() + 0.05, 1.2, 1.2), Basis(dirv.normalized(), Vector3.UP.rotated(Vector3.BACK, atan2(dirv.y, dirv.x)), Vector3.BACK))
+	g.commit(root, name, true, false)
+	var dir := Vector3(xa1 - xa0, Site.SHELF_FLOOR, 0)
+	var mid := Vector3((xa0 + xa1) * 0.5, Site.SHELF_FLOOR * 0.5 - 0.5, (z0 + z1) * 0.5)
 	var basis := Basis(dir.normalized(), Vector3(0, 1, 0).rotated(Vector3.BACK, atan2(dir.y, dir.x)), Vector3.BACK)
-	Geo.box_collider(root, mid, Vector3(dir.length(), 1.0, Site.SLIP_Z1 - Site.SLIP_Z0), basis)
+	Geo.box_collider(root, mid, Vector3(dir.length() + 1.0, 1.0, z1 - z0), basis)
 
-## The quay edge: interlocking concrete blocks, bollards, ladders, fenders and lamp posts.
+## The quay edge: capping blocks, bollards, fenders, ladders and lamp posts. North
+## of the training shelf the blocks run unbroken as a parapet along deep water.
 static func quay(root: Node3D) -> void:
 	var blk := Mats.concrete("QuayBlocks", Color(0.66, 0.64, 0.6), 0.1)
 	var g := Geo.new()
-	var z := Site.APRON_Z0 + 2.0
+	var x := Site.APRON_X1
+	var z := Site.SLICE_Z + 1.0
 	var k := 0
 	while z < Site.SLIP_Z0 - 3.0:
-		# alternating capping blocks along the edge, like the concept's breakwater
-		var tall := k % 3 == 0
+		if z > Site.RAMP_Z0 - 2.0 and z < Site.RAMP_Z1 + 1.0:
+			z = Site.RAMP_Z1 + 1.0
+			continue
+		var parapet := z < Site.SHELF_Z0
+		var tall := parapet or k % 3 == 0
 		var w := 5.0 if tall else 3.2
-		g.box(blk, Vector3(Site.APRON_X1 - 1.4, (1.6 if tall else 0.8), z + w * 0.5), Vector3(2.8, 3.2 if tall else 1.6, w - 0.3))
-		if tall:
-			g.box(Mats.yellow(), Vector3(Site.APRON_X1 - 1.4, 3.25, z + w * 0.5), Vector3(2.9, 0.12, w - 0.2))
-		else:
-			# bollard
-			g.cylinder(Mats.dark(), Vector3(Site.APRON_X1 - 3.6, 0, z + w * 0.5), Vector3(Site.APRON_X1 - 3.6, 0.9, z + w * 0.5), 0.35, 12)
-			g.cylinder(Mats.dark(), Vector3(Site.APRON_X1 - 3.6, 0.9, z + w * 0.5), Vector3(Site.APRON_X1 - 3.6, 1.05, z + w * 0.5), 0.5, 12)
-		# rubber fenders on the face
+		g.box(blk, Vector3(x - 1.4, (1.6 if tall else 0.8), z + w * 0.5), Vector3(2.8, 3.2 if tall else 1.6, w - 0.3))
+		if tall and (k % 3 == 0 or not parapet):
+			g.box(Mats.yellow(), Vector3(x - 1.4, 3.25, z + w * 0.5), Vector3(2.9, 0.12, w - 0.2))
+		if not tall:
+			g.cylinder(Mats.dark(), Vector3(x - 3.6, 0, z + w * 0.5), Vector3(x - 3.6, 0.9, z + w * 0.5), 0.35, 12)
+			g.cylinder(Mats.dark(), Vector3(x - 3.6, 0.9, z + w * 0.5), Vector3(x - 3.6, 1.05, z + w * 0.5), 0.5, 12)
 		if k % 2 == 0:
-			g.box(Mats.rubber(), Vector3(Site.APRON_X1 + 0.35, -1.8, z + w * 0.5), Vector3(0.7, 2.6, 1.2))
+			g.box(Mats.rubber(), Vector3(x + 0.35, -1.8, z + w * 0.5), Vector3(0.7, 2.6, 1.2))
 		z += w
 		k += 1
 		if tall:
-			Geo.box_collider(root, Vector3(Site.APRON_X1 - 1.4, 1.6, z - w * 0.5), Vector3(2.8, 3.2, w - 0.3))
+			Geo.box_collider(root, Vector3(x - 1.4, 1.6, z - w * 0.5), Vector3(2.8, 3.2, w - 0.3))
 	# ladders down to the water
-	for lz: float in [-150.0, -70.0, -10.0]:
+	for lz: float in [-400.0, -300.0, -200.0, -120.0, -10.0]:
 		for rung in 10:
 			var yy := -0.2 - rung * 0.4
-			g.beam(Mats.steel(), Vector3(Site.APRON_X1 + 0.25, yy, lz - 0.35), Vector3(Site.APRON_X1 + 0.25, yy, lz + 0.35), 0.06)
+			g.beam(Mats.steel(), Vector3(x + 0.25, yy, lz - 0.35), Vector3(x + 0.25, yy, lz + 0.35), 0.06)
 		for s: float in [-0.4, 0.4]:
-			g.beam(Mats.steel(), Vector3(Site.APRON_X1 + 0.25, 1.0, lz + s), Vector3(Site.APRON_X1 + 0.25, -4.2, lz + s), 0.08)
+			g.beam(Mats.steel(), Vector3(x + 0.25, 1.0, lz + s), Vector3(x + 0.25, -4.2, lz + s), 0.08)
 	g.commit(root, "Quay", true, false)
-	# lamp posts along the quay and around the apron
+	# lamp posts along the quay strip and the south edge of the yard
 	var lamps := Geo.new()
 	var pts := []
-	for lz in range(int(Site.APRON_Z0) + 12, int(Site.SLIP_Z0) - 6, 28):
-		pts.append(Vector3(Site.APRON_X1 - 5.5, 0, lz))
+	# on top of the parapet along deep water; at the inland edge of the strip by the
+	# shelf, so nothing narrows the strip into a trap for a 3.7 m-wide frame
+	for lz in range(int(Site.SLICE_Z) + 14, int(Site.SLIP_Z0) - 6, 28):
+		if lz > Site.RAMP_Z0 - 3 and lz < Site.RAMP_Z1 + 3:
+			continue
+		pts.append(Vector3(x - 1.4, 3.2, lz) if lz < Site.SHELF_Z0 else Vector3(Site.STRIP_X0 + 0.6, 0, lz))
 	for lx in range(-60, 40, 30):
 		pts.append(Vector3(lx, 0, Site.APRON_Z1 - 3))
 	for p in pts:
@@ -219,7 +254,7 @@ static func quay(root: Node3D) -> void:
 		var l := OmniLight3D.new()
 		l.position = p + Vector3(0, 10.4, 0)
 		l.light_color = Color(1.0, 0.85, 0.65)
-		l.light_energy = 0.0   # switched on at dusk by the time-of-day controller
+		l.light_energy = 0.0   # switched on at dusk
 		l.omni_range = 22
 		l.add_to_group("night_lights")
 		root.add_child(l)
@@ -232,24 +267,3 @@ static func lamp_post(g: Geo, p: Vector3) -> void:
 	g.box(Mats.dark(), p + Vector3(0, 10.7, 0), Vector3(1.1, 0.35, 0.5))
 	g.box(Mats.lamp(), p + Vector3(0, 10.5, 0), Vector3(0.9, 0.08, 0.38))
 	g.box(Mats.dark(), p + Vector3(0, 9.0, 0.45), Vector3(0.08, 0.08, 0.9))
-
-## Orange floats on a sagging rope, fencing the training shallows.
-static func buoys(root: Node3D) -> void:
-	var g := Geo.new()
-	var path := [Vector3(70, 0, 50), Vector3(110, 0, 70), Vector3(160, 0, 85), Vector3(215, 0, 92), Vector3(265, 0, 120)]
-	var path2 := [Vector3(70, 0, 16), Vector3(125, 0, -15), Vector3(190, 0, -30), Vector3(260, 0, -36)]
-	for line in [path, path2]:
-		for i in line.size() - 1:
-			var a: Vector3 = line[i]
-			var b: Vector3 = line[i + 1]
-			var nseg := int(a.distance_to(b) / 5.0)
-			var prev := a + Vector3(0, Site.WATER_Y + 0.3, 0)
-			for s in range(1, nseg + 1):
-				var t := float(s) / nseg
-				var p := a.lerp(b, t) + Vector3(0, Site.WATER_Y + 0.3 - sin(t * PI) * 0.15, 0)
-				g.beam(Mats.dark(), prev, p, 0.05)
-				var big := s % 3 == 0
-				var r := 0.55 if big else 0.32
-				g.cylinder(Mats.orange(), p - Vector3(0, r * 0.6, 0), p + Vector3(0, r * 0.6, 0), r, 12, r, true, false)
-				prev = p
-	g.commit(root, "BuoyLine", true, false)

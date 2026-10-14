@@ -8,8 +8,10 @@ extends Node
 signal beat(name: String)
 signal finished
 
-const PATH := [Vector3(430, 42, 40), Vector3(250, 22, 20), Vector3(130, 12, 34), Vector3(46, 9, 36),
-	Vector3(-20, 10, -36), Vector3(-66, 11, -74), Vector3(-106, 8.5, -76)]
+const PATH := [Vector3(430, 42, 40), Vector3(250, 22, 20), Vector3(130, 12, 34), Vector3(46, 9, 30),
+	Vector3(-20, 8, -50), Vector3(-66, 7, -74), Vector3(-96, 6.5, -76)]
+const ARMS_OPEN := Vector3(-1.8, 3.4, 0)
+const END_CAM := Vector3(-96, 6.5, -76)
 const FLY_TIME := 15.0
 
 var world: Node3D
@@ -67,7 +69,7 @@ func _place(t: float) -> void:
 	# fast over the water, settling as it reaches the bay
 	var e := 1.0 - pow(1.0 - u, 2.2)
 	var pos := _curve.sample_baked(e * _curve.get_baked_length(), true)
-	var look := Vector3(-100, 14, -74).lerp(mech.global_position + Vector3(0, 6.5, 0), smoothstep(0.55, 1.0, u))
+	var look := Vector3(-100, 9, -74).lerp(mech.global_position + Vector3(0, 5.6, 0), smoothstep(0.55, 1.0, u))
 	_cam.global_position = pos
 	_cam.look_at(look)
 
@@ -96,12 +98,12 @@ func _release() -> void:
 	var arms: Node3D = gantry.get("arms")
 	var clamps: Node3D = gantry.get("clamps")
 	if _skipped:
-		if arms: arms.position = Vector3(-2.0, 4.5, 0)
+		if arms: arms.position = ARMS_OPEN
 		if clamps: clamps.position.y = -0.32
 		rig.set_power(1.0)
 		return
-	_cam.global_position = Vector3(-106, 8.5, -76)
-	_cam.look_at(mech.global_position + Vector3(0, 6.5, 0))
+	_cam.global_position = END_CAM
+	_cam.look_at(mech.global_position + Vector3(0, 5.6, 0))
 	hud.subtitle("BAY CREW", "Releasing clamps. Stand clear of the frame.", 3.5)
 	var at := mech.global_position
 	if Sfx.I:
@@ -122,10 +124,10 @@ func _release() -> void:
 	beat.emit("release")
 	if arms:
 		var ta := world.create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-		ta.tween_property(arms, "position", Vector3(-2.0, 4.5, 0), 2.6)
+		ta.tween_property(arms, "position", ARMS_OPEN, 2.6)
 	# push in slowly while the frame wakes up
 	var tc := world.create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tc.tween_property(_cam, "global_position", Vector3(-112, 7.4, -79), 4.5)
+	tc.tween_property(_cam, "global_position", Vector3(-101, 6.0, -78), 4.5)
 	await _wait(1.6)
 	hud.subtitle("KESTREL", "Reactor online. Actuators nominal.", 3.0)
 	var tp := world.create_tween()
@@ -140,7 +142,7 @@ func _release() -> void:
 		v.emitting = false
 	if _skipped:
 		tw.kill()
-		if arms: arms.position = Vector3(-2.0, 4.5, 0)
+		if arms: arms.position = ARMS_OPEN
 		if clamps: clamps.position.y = -0.32
 		rig.set_power(1.0)
 

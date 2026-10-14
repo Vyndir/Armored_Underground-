@@ -21,6 +21,7 @@ var _flames: Array[MeshInstance3D] = []
 var _boost_light: OmniLight3D
 var _surface_mats: Array[ShaderMaterial] = []
 var _glow_mat: StandardMaterial3D
+const LEG_LEN := 3.85        # hip to ankle in model units (thigh head 4.5 m, foot head 0.65 m)
 
 const BONES := ["pelvis", "spine", "chest", "head", "booster", "shoulder.L", "upperarm.L", "forearm.L", "hand.L",
 	"shoulder.R", "upperarm.R", "forearm.R", "hand.R", "thigh.L", "shin.L", "foot.L", "thigh.R", "shin.R", "foot.R"]
@@ -39,11 +40,15 @@ static func surface_material(part: String, paint: Color, accent: Color) -> Shade
 	return m
 
 func setup(paint: Color, accent: Color, glow: Color) -> void:
+	# placeholder frame asset (generated v3 build, default loadout); replaceable
 	var scene: PackedScene = load("res://assets/mech/kestrel.glb")
 	var model := scene.instantiate()
 	add_child(model)
-	# the export faces +Z; Godot's forward is -Z
+	# the export faces +Z; Godot's forward is -Z. Uniform scale to 6.8 m to the
+	# helmet top, soles lifted onto the ground plane.
 	model.rotation.y = PI
+	model.scale = Vector3.ONE * Site.MECH_SCALE
+	model.position.y = -Site.MECH_MODEL_SOLE * Site.MECH_SCALE
 	var mats := {}
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		var m: MeshInstance3D = mi
@@ -104,9 +109,12 @@ func set_wet(w: float) -> void:
 func _build_thrusters(glow: Color) -> void:
 	if not _idx.has("booster"):
 		return
-	# flames hang off the back of the frame (mech space: forward is -Z)
+	# flames hang off the back of the frame (mech space: forward is -Z), in model
+	# units scaled with the frame
 	var att := Node3D.new()
 	add_child(att)
+	att.scale = Vector3.ONE * Site.MECH_SCALE
+	att.position.y = -Site.MECH_MODEL_SOLE * Site.MECH_SCALE
 	var cone := CylinderMesh.new()
 	cone.top_radius = 0.35
 	cone.bottom_radius = 0.02
@@ -146,36 +154,70 @@ func _turn(bone: String, axis: Vector3, angle: float) -> void:
 func _process(dt: float) -> void:
 	if skel == null or mech == null:
 		return
-	var sp := mech.speed()
 	var on := mech.is_on_floor()
-	var walk := clampf(sp / Mech.WALK, 0.0, 1.0) if on and not mech.boosting else 0.0
-	_lean = lerpf(_lean, (0.32 if mech.boosting else 0.0) + walk * 0.06, 1.0 - exp(-dt * 5.0))
+	var t := mech.tuning
+	var walk := mech.walk_amt
+	_lean = lerpf(_lean, (0.32 if mech.boosting else 0.0) + walk * 0.05, 1.0 - exp(-dt * 5.0))
 	_tuck = lerpf(_tuck, 1.0 if not on else 0.0, 1.0 - exp(-dt * 6.0))
 	_crouch = lerpf(_crouch, 0.6 if mech.boosting and on else 0.0, 1.0 - exp(-dt * 6.0))
-	var ph := mech.stride * TAU
 	var up := Vector3.UP
 	var r := _right
-	# legs: swing about the hip, bend the knee on the recovery stroke
-	for side: float in [1.0, -1.0]:
-		var p := ph if side > 0 else ph + PI
-		var sw := sin(p) * 0.5 * walk
-		var lift := maxf(0.0, cos(p)) * 0.75 * walk
-		var s := "L" if side > 0 else "R"
-		_turn("thigh." + s, r, -sw - _crouch * 0.45 - _tuck * 0.55)
-		_turn("shin." + s, r, lift + _crouch * 0.85 + _tuck * 0.9)
-		_turn("foot." + s, r, -lift * 0.4 - _crouch * 0.4 - _tuck * 0.3)
-	# body: bob, lean into boosts, counter-twist with the stride
+	# stride amplitude from the step length (model units), capped
+	var step_len := mech.speed() * mech.gait_period / Site.MECH_SCALE
+	var amp := asin(clampf(step_len / (2.0 * LEG_LEN), 0.0, 0.58)) * t.stride_scale * walk
+	var u := mech.gait_t
+	var lf := mech.load_frac()
+	var loading := lf > 0.0 and u < lf
+	var lw := sin(PI * u / lf) if loading else 0.0                 # 0..1..0 through the loading phase
+	var sw := smoothstep(0.0, 1.0, (u - lf) / (1.0 - lf)) if u >= lf else 0.0   # swing progress
+	var stance := mech.gait_side                                     # 0 = left foot planted
+	var stance_sign := 1.0 if stance == 0 else -1.0
+	var thigh := {}
+	for leg in [0, 1]:
+		var s := "L" if leg == 0 else "R"
+		var f := 0.0       # thigh forward angle
+		var knee := 0.0
+		var foot := 0.0
+		if t.continuous_gait:
+			# previous controller: continuous sine swing driven by the step clock
+			var ph := (u + float(stance)) * PI + (0.0 if leg == 0 else PI)
+			f = sin(ph) * amp
+			knee = maxf(0.0, cos(ph)) * 1.5 * amp
+			foot = -knee * 0.4
+		elif leg == stance:
+			# planted foot: sweeps from front to back under the body, knee takes the load
+			f = amp * (1.0 - 2.0 * u)
+			knee = 0.06 * walk + t.knee_load * lw * walk
+			foot = f - knee
+		else:
+			# trailing foot: holds at toe-off through the loading, then swings through
+			f = -amp + 2.0 * amp * sw
+			knee = (0.12 + 0.95 * sin(PI * sw)) * walk
+			foot = f * 0.4 - knee * 0.55
+		thigh[leg] = f
+		_turn("thigh." + s, r, -f - _crouch * 0.45 - _tuck * 0.55)
+		_turn("shin." + s, r, knee + _crouch * 0.85 + _tuck * 0.9)
+		_turn("foot." + s, r, foot - _crouch * 0.4 - _tuck * 0.3)
+	# body: settles onto the planted foot (dip, sway, roll), leans into boosts
+	var roll := stance_sign * 0.045 * walk * (0.5 + 0.5 * lw) if not t.continuous_gait else 0.0
 	_turn("spine", r, -_lean * 0.6)
-	_turn("chest", up, sin(ph) * 0.06 * walk)
+	if _idx.has("spine") and roll != 0.0:
+		_turn("spine", r, -_lean * 0.6)
+		var b := skel.get_bone_pose_rotation(_idx["spine"])
+		var g: Basis = _rest_global["spine"]
+		skel.set_bone_pose_rotation(_idx["spine"], b * Quaternion((g.inverse() * Basis(Quaternion(_fwd, roll)) * g).orthonormalized()))
+	_turn("chest", up, -stance_sign * 0.07 * walk * (1.0 - 2.0 * u))
 	_turn("head", r, _lean * 0.4)
 	if _idx.has("pelvis"):
-		var bob := -absf(cos(ph)) * 0.18 * walk - _crouch * 0.6 - _tuck * 0.3
-		skel.set_bone_pose_position(_idx["pelvis"], _pelvis_rest + Vector3(0, bob, 0))
-	# arms swing opposite the legs; tucked back when boosting
-	for side: float in [1.0, -1.0]:
-		var p := ph + PI if side > 0 else ph
-		var s := "L" if side > 0 else "R"
-		_turn("upperarm." + s, r, sin(p) * 0.28 * walk + _lean * 0.5)
+		var bob := -t.pelvis_dip * lw * walk - 0.04 * walk - _crouch * 0.6 - _tuck * 0.3
+		if t.continuous_gait:
+			bob = -absf(cos((u + float(stance)) * PI)) * t.pelvis_dip * walk - _crouch * 0.6 - _tuck * 0.3
+		var sway := _right * stance_sign * t.pelvis_sway * walk * (0.6 + 0.4 * lw) if not t.continuous_gait else Vector3.ZERO
+		skel.set_bone_pose_position(_idx["pelvis"], _pelvis_rest + Vector3(0, bob, 0) + sway)
+	# arms counter-swing with the legs
+	for leg in [0, 1]:
+		var s := "L" if leg == 0 else "R"
+		_turn("upperarm." + s, r, -float(thigh[leg]) * 0.5 + _lean * 0.5)
 		_turn("forearm." + s, r, -0.25 - _lean * 0.4)
 	# booster flames
 	var level := 1.0 if mech.boosting else (0.7 if mech.hovering else 0.05)

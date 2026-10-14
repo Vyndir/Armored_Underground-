@@ -28,21 +28,22 @@ static func portal(root: Node3D) -> void:
 	var x := Site.HANGAR_X1
 	var zc := (Site.DOOR_Z0 + Site.DOOR_Z1) * 0.5
 	# side piers, stepped like the concept's heavy door frame
+	var ph := Site.DOOR_H + 6.6     # pier height: the lintel sits on top of the opening
 	for side: float in [-1.0, 1.0]:
 		var z := zc + side * ((Site.DOOR_Z1 - Site.DOOR_Z0) * 0.5 + 4.6)
-		g.box(conc, Vector3(x + 2.0, 15.5, z), Vector3(5.0, 31.0, 5.6))
-		g.box(conc, Vector3(x + 4.9, 13.0, z), Vector3(1.0, 26.0, 4.0))
+		g.box(conc, Vector3(x + 2.0, ph * 0.5, z), Vector3(5.0, ph, 5.6))
+		g.box(conc, Vector3(x + 4.9, Site.DOOR_H * 0.5, z), Vector3(1.0, Site.DOOR_H, 4.0))
 		g.box(Mats.hazard(), Vector3(x + 5.45, 1.6, z), Vector3(0.12, 3.2, 4.0))
-		for k in 6:
+		for k in int(ph / 4.2):
 			g.box(Mats.dark(), Vector3(x + 4.5, 4.0 + k * 4.2, z - side * 2.85), Vector3(0.6, 0.12, 0.3))
-		Geo.box_collider(root, Vector3(x + 2.6, 15.5, z), Vector3(6.2, 31.0, 5.6))
+		Geo.box_collider(root, Vector3(x + 2.6, ph * 0.5, z), Vector3(6.2, ph, 5.6))
 	# lintel: deep beam over the opening with a recessed light slot
-	g.box(conc, Vector3(x + 2.6, 29.0, zc), Vector3(6.2, 6.0, Site.DOOR_Z1 - Site.DOOR_Z0 + 14.8))
-	g.box(Mats.lamp(), Vector3(x + 5.72, 26.15, zc), Vector3(0.05, 0.25, Site.DOOR_Z1 - Site.DOOR_Z0 + 6.0))
-	g.box(Mats.dark(), Vector3(x + 5.0, 32.4, zc), Vector3(1.6, 0.8, Site.DOOR_Z1 - Site.DOOR_Z0 + 15.0))
+	g.box(conc, Vector3(x + 2.6, Site.DOOR_H + 3.0, zc), Vector3(6.2, 6.0, Site.DOOR_Z1 - Site.DOOR_Z0 + 14.8))
+	g.box(Mats.lamp(), Vector3(x + 5.72, Site.DOOR_H + 0.15, zc), Vector3(0.05, 0.25, Site.DOOR_Z1 - Site.DOOR_Z0 + 6.0))
+	g.box(Mats.dark(), Vector3(x + 5.0, Site.DOOR_H + 6.4, zc), Vector3(1.6, 0.8, Site.DOOR_Z1 - Site.DOOR_Z0 + 15.0))
 	# concrete fins and weathering on the clad walls either side
 	for z in [Site.HANGAR_Z0 + 4.0, Site.HANGAR_Z0 + 10.0, Site.HANGAR_Z1 - 4.0]:
-		g.box(conc, Vector3(x + 1.0, 14.5, z), Vector3(2.0, 29.0, 1.4))
+		g.box(conc, Vector3(x + 1.0, Site.HANGAR_H * 0.5, z), Vector3(2.0, Site.HANGAR_H, 1.4))
 	g.commit(root, "Portal", true, false)
 
 static func container_box(g: Geo, c: Vector3, yaw: float, color: Color, long := true) -> void:
@@ -69,7 +70,7 @@ static func containers(root: Node3D) -> void:
 				container_box(g, c + Vector3(0, lvl * 2.62, 0), 0.0, cols[rng.randi() % cols.size()])
 			Geo.box_collider(root, c + Vector3(0, h * 1.31, 0), Vector3(2.5, h * 2.62, 12.2))
 	# a few loose units near the quay and slipway
-	for spec in [[Vector3(20, 0, -175), 0.3], [Vector3(26, 0, -150), 1.57], [Vector3(-40, 0, 58), 0.1], [Vector3(-34, 0, 62), 0.2]]:
+	for spec in [[Vector3(-63, 0, -212), 0.05], [Vector3(-63, 0, -236), -0.04], [Vector3(-40, 0, 58), 0.1], [Vector3(-34, 0, 62), 0.2]]:
 		var c: Vector3 = spec[0]
 		container_box(g, c, spec[1], cols[rng.randi() % cols.size()])
 		Geo.box_collider(root, c + Vector3(0, 1.3, 0), Vector3(2.5, 2.6, 12.2), Basis(Vector3.UP, spec[1]))
@@ -78,7 +79,7 @@ static func containers(root: Node3D) -> void:
 static func light_towers(root: Node3D) -> Array:
 	var out := []
 	var g := Geo.new()
-	for spec in [[Vector3(-30, 0, -150), 0.4], [Vector3(30, 0, -100), 2.4], [Vector3(-6, 0, 8), -0.6], [Vector3(-66, 0, 30), 1.0]]:
+	for spec in [[Vector3(-74, 0, -150), 0.4], [Vector3(8, 0, -186), 2.4], [Vector3(-74, 0, 22), -0.6], [Vector3(-66, 0, 44), 1.0]]:
 		var p: Vector3 = spec[0]
 		var b := Basis(Vector3.UP, spec[1])
 		g.box(Mats.yellow(), p + Vector3(0, 1.0, 0), Vector3(2.2, 1.4, 3.6), b)
@@ -113,7 +114,7 @@ static func flags(root: Node3D, art: Dictionary) -> Array:
 	mat.shader = load("res://shaders/flag.gdshader")
 	mat.set_shader_parameter("tex", art.get("flag"))
 	for k in 5:
-		var p := Vector3(-66.0, 0, -122.0 + k * 6.0)
+		var p := Vector3(-72.0, 0, -124.0 + k * 5.5)
 		g.cylinder(Mats.white(), p, p + Vector3(0, 16, 0), 0.14, 8, 0.08)
 		g.cylinder(Mats.steel(), p + Vector3(0, 16, 0), p + Vector3(0, 16.3, 0), 0.22, 8)
 		var cloth := MeshInstance3D.new()
@@ -128,7 +129,7 @@ static func flags(root: Node3D, art: Dictionary) -> Array:
 		cloth.position = p + Vector3(2.5, 14.2, 0)
 		out.append(cloth)
 	# windsock
-	var ws := Vector3(36, 0, -110)
+	var ws := Vector3(38.6, 3.2, -110)
 	g.cylinder(Mats.steel(), ws, ws + Vector3(0, 9, 0), 0.12, 8)
 	g.cylinder(Mats.dark(), ws + Vector3(0, 9, 0), ws + Vector3(0.6, 9, 0), 0.5, 12, 0.5, false)
 	var sock := MeshInstance3D.new()
@@ -151,7 +152,7 @@ static func flags(root: Node3D, art: Dictionary) -> Array:
 ## Knuckle-boom crane on the north quay and its pedestal.
 static func quay_crane(root: Node3D) -> void:
 	var g := Geo.new()
-	var p := Vector3(34, 0, -40)
+	var p := Vector3(36.5, 0, -66)
 	g.cylinder(Mats.yellow(), p, p + Vector3(0, 4, 0), 1.6, 16)
 	g.cylinder(Mats.dark(), p + Vector3(0, 4, 0), p + Vector3(0, 4.6, 0), 1.9, 16)
 	g.box(Mats.yellow(), p + Vector3(-0.5, 5.8, 0), Vector3(3.2, 2.4, 2.6))
@@ -187,7 +188,7 @@ static func clutter(root: Node3D) -> void:
 	var g := Geo.new()
 	var drum_cols := [Color(0.12, 0.3, 0.62), Color(0.9, 0.65, 0.1), Color(0.55, 0.1, 0.08), Color(0.25, 0.27, 0.28)]
 	# barrel clusters
-	for c in [Vector3(-60, 0, -128), Vector3(-34, 0, -160), Vector3(12, 0, -168), Vector3(-72, 0, 44)]:
+	for c in [Vector3(-76, 0, -134), Vector3(-60, 0, -186), Vector3(4, 0, -182), Vector3(-72, 0, 52)]:
 		for k in 9:
 			var o := Vector3((k % 3) * 1.3, 0, int(k / 3) * 1.3)
 			if rng.randf() < 0.15:
@@ -199,13 +200,12 @@ static func clutter(root: Node3D) -> void:
 			g.cylinder(Mats.dark(), c + o + Vector3(0, 0.84, 0), c + o + Vector3(0, 0.9, 0), 0.62, 14)
 		Geo.box_collider(root, c + Vector3(1.3, 0.65, 1.3), Vector3(4, 1.3, 4))
 	# pallets with wrapped loads
-	for c in [Vector3(-56, 0, -140), Vector3(-52, 0, -140), Vector3(-48, 0, -140), Vector3(4, 0, -160), Vector3(8, 0, -160)]:
+	for c in [Vector3(-75, 0, -140), Vector3(-75, 0, -142.5), Vector3(-75, 0, -145), Vector3(10, 0, -178), Vector3(10, 0, -175.5)]:
 		g.box(Mats.lit("Pallet", Color(0.5, 0.38, 0.24), 0.9), c + Vector3(0, 0.08, 0), Vector3(1.2, 0.16, 1.0))
 		g.box(Mats.lit("Wrap", Color(0.82, 0.84, 0.86), 0.3, 0.0), c + Vector3(0, 0.75, 0), Vector3(1.1, 1.2, 0.95))
 	# traffic cones marking the course and the slipway head
 	var cone_m := Mats.orange()
-	for p in [Vector3(-46, 0, -80), Vector3(-46, 0, -68), Vector3(-20, 0, -110), Vector3(-14, 0, -118), Vector3(-8, 0, -126),
-			Vector3(8, 0, -66), Vector3(8, 0, -54), Vector3(28, 0, -66), Vector3(28, 0, -54), Vector3(0, 0, 14), Vector3(0, 0, 52)]:
+	for p in [Vector3(12, 0, -58.5), Vector3(12, 0, -41.5), Vector3(0, 0, 14), Vector3(0, 0, 52)]:
 		g.cylinder(Mats.dark(), p, p + Vector3(0, 0.08, 0), 0.5, 4)
 		g.cylinder(cone_m, p + Vector3(0, 0.08, 0), p + Vector3(0, 1.0, 0), 0.36, 12, 0.06)
 		g.cylinder(Mats.white(), p + Vector3(0, 0.5, 0), p + Vector3(0, 0.64, 0), 0.25, 12, 0.21, false)
@@ -219,16 +219,16 @@ static func clutter(root: Node3D) -> void:
 		Geo.box_collider(root, p + Vector3(0, 0.65, 0), Vector3(3.8, 1.3, 0.9), b)
 	# hoses and cables snaking out of the hangar
 	for k in 3:
-		var a := Vector3(-80, 0.12, -60 - k * 3.0)
+		var a := Vector3(-80, 0.12, -64 - k * 3.0)
 		var prev := a
-		for s in range(1, 14):
+		for s in range(1, 6):
 			var p := a + Vector3(s * 3.0, 0.12, sin(s * 0.7 + k) * 1.8)
 			g.beam(Mats.rubber() if k != 1 else Mats.yellow(), prev, p, 0.18)
 			prev = p
 	g.commit(root, "Clutter", true, false)
 
 static func signs(root: Node3D, art: Dictionary) -> void:
-	for spec in [[Vector3(-40, 0, -60), "sign_speed", PI * 0.5], [Vector3(-2, 0, 12), "sign_slip", 0.0], [Vector3(-70, 0, -126), "sign_crossing", PI * 0.5]]:
+	for spec in [[Vector3(-74, 0, -56), "sign_speed", PI * 0.5], [Vector3(-2, 0, 12), "sign_slip", 0.0], [Vector3(-74, 0, -128), "sign_crossing", PI * 0.5]]:
 		var g := Geo.new()
 		var p: Vector3 = spec[0]
 		g.cylinder(Mats.steel(), p, p + Vector3(0, 3.4, 0), 0.07, 8)
@@ -253,16 +253,16 @@ static func interior_extras(root: Node3D, art: Dictionary) -> Vector3:
 	bm.albedo_texture = art.get("banner")
 	bm.cull_mode = BaseMaterial3D.CULL_DISABLED
 	bm.roughness = 0.8
-	for x: float in [-148.0, -126.0, -104.0]:
+	for x: float in [-130.0, -112.0, -94.0]:
 		var b := MeshInstance3D.new()
 		var q := QuadMesh.new()
-		q.size = Vector2(6, 10.5)
+		q.size = Vector2(5, 8)
 		b.mesh = q
 		b.material_override = bm
 		root.add_child(b)
-		b.position = Vector3(x, 20.5, Site.HANGAR_Z0 + 3.0)
+		b.position = Vector3(x, 12.4, Site.HANGAR_Z0 + 3.0)
 	var g := Geo.new()
-	var stand := Vector3(-150, 0, -60)
+	var stand := Vector3(-88, 0, -56)
 	g.box(Mats.yellow(), stand + Vector3(0, 0.3, 0), Vector3(3.0, 0.6, 2.0))
 	g.beam(Mats.yellow(), stand + Vector3(0, 0.6, 0), stand + Vector3(0, 3.4, 0), 0.4)
 	var grey := Mats.painted("MechGrey", Color(0.45, 0.47, 0.46), 0.45, 0.55)
@@ -271,7 +271,7 @@ static func interior_extras(root: Node3D, art: Dictionary) -> Vector3:
 	g.box(grey, stand + Vector3(0, 1.4, 2.2), Vector3(1.4, 2.6, 1.2), Basis(Vector3.RIGHT, -0.5))
 	g.box(Mats.dark(), stand + Vector3(0, 0.3, 3.0), Vector3(1.6, 0.6, 2.2))
 	# welding bay: a worker's table, a plate on it, a screen
-	var weld := Vector3(-120, 0, -112)
+	var weld := Vector3(-85, 0, -99)
 	g.box(Mats.steel(), weld + Vector3(0, 0.5, 0), Vector3(3.0, 1.0, 1.6))
 	g.box(grey, weld + Vector3(0, 1.1, 0), Vector3(2.4, 0.2, 1.2))
 	g.box(Mats.lit("WeldScreen", Color(0.25, 0.08, 0.05), 0.6), weld + Vector3(2.2, 1.3, 0), Vector3(0.1, 2.6, 2.2))

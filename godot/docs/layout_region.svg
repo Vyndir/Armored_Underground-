@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 640" font-family="Segoe UI, Arial, sans-serif" font-size="11">
+  <!-- 1 px = 8 m. World x -> (x + 2400)/8 ; world z -> (z + 3400)/8 (north up) -->
+  <rect width="760" height="640" fill="#2f5d86"/>
+  <text x="14" y="22" font-size="16" font-weight="bold" fill="#fff">Regional placement (1 px = 8 m, north up), following the aerial world map</text>
+  <!-- west shore (our side) -->
+  <path d="M0,40 L280,40 L300,140 L290,200 L300,260 L305,330 L305,430 L295,480 L300,560 L240,640 L0,640 Z" fill="#cfd8c4"/>
+  <!-- east bank with downtown -->
+  <path d="M470,40 L760,40 L760,640 L560,640 L520,520 L470,440 L450,360 L430,250 L440,150 Z" fill="#cfd8c4"/>
+  <!-- hills -->
+  <path d="M0,40 L150,40 L160,300 L120,640 L0,640 Z" fill="#a9bb98"/>
+  <!-- ground arena inland NW -->
+  <ellipse cx="120" cy="200" rx="22" ry="14" fill="#e7dcc4" stroke="#7a6a4a"/><text x="60" y="180" fill="#3a2f1a">4 GROUND ARENA (silhouette, elevated views)</text>
+  <!-- hangar district -->
+  <rect x="220" y="250" width="70" height="80" fill="#9a8f80"/><text x="150" y="246" fill="#2a2a2a">1 HANGAR DISTRICT (simplified sheds, cranes)</text>
+  <!-- bridge -->
+  <path d="M275,212 L512,212" stroke="#e8e0cc" stroke-width="5"/>
+  <rect x="345" y="204" width="6" height="16" fill="#fff"/><rect x="430" y="204" width="6" height="16" fill="#fff"/>
+  <text x="330" y="198" fill="#fff" font-weight="bold">2 CENTRAL BRIDGE (existing, z = -1700)</text>
+  <!-- downtown -->
+  <rect x="460" y="90" width="180" height="100" fill="#8a96a6"/><text x="490" y="140" fill="#fff" font-weight="bold">3 DOWNTOWN (existing skyline)</text>
+  <!-- flight circuit -->
+  <rect x="640" y="50" width="90" height="26" fill="#b9c0a8"/><text x="600" y="90" fill="#fff">5 FLIGHT CIRCUIT (far, optional)</text>
+  <!-- championship arena -->
+  <ellipse cx="480" cy="455" rx="26" ry="18" fill="#efe9dc" stroke="#7a6a4a"/><text x="512" y="460" fill="#1a1a1a" font-weight="bold">6 CHAMPIONSHIP ARENA</text>
+  <!-- lighthouse islet -->
+  <circle cx="352" cy="347" r="6" fill="#b6b2a4"/><text x="362" y="351" fill="#fff">lighthouse islet (existing)</text>
+  <!-- our slice -->
+  <rect x="290" y="395" width="20" height="40" fill="#ffd25a" stroke="#000"/>
+  <text x="140" y="420" fill="#000" font-weight="bold">TRAINING HANGAR</text>
+  <text x="140" y="434" fill="#000">(this slice)</text>
+  <!-- waterfront road -->
+  <path d="M296,395 L296,330 L292,280 L285,240 L282,212" stroke="#55595e" stroke-width="4" fill="none"/>
+  <path d="M296,395 L296,352" stroke="#ffd25a" stroke-width="4"/>
+  <text x="160" y="370" fill="#000">waterfront road: playable (yellow)</text>
+  <text x="160" y="384" fill="#000">then scenery up the bridge approach</text>
+  <!-- legend -->
+  <text x="14" y="620" fill="#fff">Positions are fixed in world space so every camera sees the same skyline, bridge and arenas. Far districts use low-poly LOD meshes only.</text>
+</svg>

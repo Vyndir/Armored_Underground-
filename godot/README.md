@@ -15,6 +15,14 @@ move WASD / left stick · look mouse / right stick · boost Shift / RB (hold) ·
 jump and hover Space / A (hold) · quick boost Q / B · interact E / Y ·
 recenter camera C / R3 · controls F1 / Back · pause Esc / Start.
 
+Options after `--`: `--skip-intro`, `--door=WxH` (hangar door comparison, default 24x11),
+`--night`, `--laptop` (lighter rendering preset), `--perf <dir>` (frame timing CSV),
+`--autotest <dir>` (play the course and run the QA checks). In game, F4 opens the movement
+tuning panel (v02 baseline vs the previous controller).
+
+The waterfront blockout layout, scale measurements and door comparison are documented in
+`docs/layout_local.svg`, `docs/layout_region.svg` and `docs/scale_notes.md`.
+
 The level opens with a flyover and KESTREL's release from the service bay; hold
 Space / A or press E / Y to skip it, or launch with `-- --skip-intro`.
 
