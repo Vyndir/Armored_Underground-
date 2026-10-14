@@ -1,0 +1,99 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+Vulkan 1.4.325 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 3050 Ti Laptop GPU
+
+[vegetation] spruce=1560 fir=1282 pine=393 broadleaf=40 far=3245
+[qa] scale factor=0.8883 helmet_top=6.800 m antenna_top=7.244 m sole=0.000 m (ground 0.001) collider: capsule h=6.85 r=1.85 top=6.85
+[qa] knee joint height=2.50 m, hip height=4.06 m
+[autotest] o0_spawn
+[autotest] o1_pad1
+[qa] turn step done in 0.31s, step=3
+[autotest] o2_turned_to_bridge
+[qa] jump step -> step=4
+[autotest] o4_pad2_boost
+[autotest] o5_wading_marker
+[qa] wade -> step=6 in_water=true y=-3.60
+[autotest] o6_complete
+[qa] onboarding step=7 done=true max_frame_move=0.31m
+[qa] walk peak=13.50 m/s avg=13.03 m/s step_interval=0.361s (tuning: walk 13.5, step 0.36s, load 0.09s, turn 6.5)
+[qa] turn 180 deg to within 10 deg: 0.48s
+[qa] jump apex=2.98 m (tap, no hover)
+[qa] short boost 1.0s: distance=26.1 m top=36.0 m/s energy=0.84
+[qa] shelf: feet y=-3.60 floor=-3.60 water=-2.20 depth=1.40 m knee y=-1.10 (water 1.10 m below knee) in_water=true max_frame_move=0.23 m (from (32.0, 0.0, -20.0))
+[autotest] w1_water_edge_looking_back
+[autotest] w2_depth_side
+[qa] exit by north ramp: ok=true y=-0.00 in_water=false
+[qa] exit by slipway: ok=true y=0.00 in_water=false max_frame_move=0.23 m
+[qa] boundary north road checkpoint  boost  outside_max=0.00 m top_y=0.0 end=(-40.0, 0.0, -467.0)
+[qa] boundary north road checkpoint  jump   outside_max=0.00 m top_y=3.0 end=(-40.0, 2.0, -467.0)
+[qa] boundary north road checkpoint  hover  outside_max=0.00 m top_y=14.4 end=(-40.0, 0.0, -467.0)
+[qa] boundary north road checkpoint  dash   outside_max=0.00 m top_y=0.0 end=(-40.0, 0.0, -467.0)
+[qa] boundary north strip end        boost  outside_max=0.00 m top_y=0.0 end=(27.0, 0.0, -467.0)
+[qa] boundary north strip end        jump   outside_max=0.00 m top_y=3.0 end=(27.0, 2.0, -467.0)
+[qa] boundary north strip end        hover  outside_max=0.00 m top_y=14.4 end=(27.0, 0.0, -467.0)
+[qa] boundary north strip end        dash   outside_max=0.00 m top_y=0.0 end=(27.0, 0.0, -467.0)
+[qa] boundary NE corner quay/north   boost  outside_max=0.00 m top_y=0.0 end=(35.0, 0.0, -467.0)
+[qa] boundary NE corner quay/north   jump   outside_max=0.00 m top_y=6.2 end=(37.0, 6.0, -467.0)
+[qa] boundary NE corner quay/north   hover  outside_max=0.00 m top_y=14.4 end=(37.0, 4.0, -467.0)
+[qa] boundary NE corner quay/north   dash   outside_max=0.00 m top_y=0.0 end=(35.0, 0.0, -467.0)
+[qa] boundary quay deep water        boost  outside_max=0.00 m top_y=0.0 end=(35.0, 0.0, -300.0)
+[qa] boundary quay deep water        jump   outside_max=0.00 m top_y=6.2 end=(37.0, 6.0, -300.0)
+[qa] boundary quay deep water        hover  outside_max=0.00 m top_y=14.4 end=(37.0, 4.0, -300.0)
+[qa] boundary quay deep water        dash   outside_max=0.00 m top_y=0.0 end=(28.0, 0.0, -300.0)
+[qa] boundary shelf N boom           boost  outside_max=0.00 m top_y=0.0 end=(80.0, -4.0, -57.0)
+[qa] boundary shelf N boom           jump   outside_max=0.00 m top_y=0.0 end=(80.0, -2.0, -57.0)
+[qa] boundary shelf N boom           hover  outside_max=0.00 m top_y=10.8 end=(80.0, -3.0, -57.0)
+[qa] boundary shelf N boom           dash   outside_max=0.00 m top_y=0.0 end=(80.0, -4.0, -57.0)
+[qa] boundary shelf NE corner        boost  outside_max=0.00 m top_y=0.0 end=(117.0, -4.0, -57.0)
+[qa] boundary shelf NE corner        jump   outside_max=0.00 m top_y=0.0 end=(117.0, -2.0, -57.0)
+[qa] boundary shelf NE corner        hover  outside_max=0.00 m top_y=10.8 end=(117.0, -3.0, -57.0)
+[qa] boundary shelf NE corner        dash   outside_max=0.00 m top_y=0.0 end=(117.0, -4.0, -57.0)
+[qa] boundary shelf E boom           boost  outside_max=0.00 m top_y=0.0 end=(117.0, -4.0, 5.0)
+[qa] boundary shelf E boom           jump   outside_max=0.00 m top_y=0.0 end=(117.0, -2.0, 5.0)
+[qa] boundary shelf E boom           hover  outside_max=0.00 m top_y=10.8 end=(117.0, -3.0, 5.0)
+[qa] boundary shelf E boom           dash   outside_max=0.00 m top_y=0.0 end=(117.0, -4.0, 5.0)
+[qa] boundary shelf SE corner        boost  outside_max=0.00 m top_y=0.0 end=(117.0, -4.0, 67.0)
+[qa] boundary shelf SE corner        jump   outside_max=0.00 m top_y=0.0 end=(117.0, -2.0, 67.0)
+[qa] boundary shelf SE corner        hover  outside_max=0.00 m top_y=10.8 end=(117.0, -3.0, 67.0)
+[qa] boundary shelf SE corner        dash   outside_max=0.00 m top_y=0.0 end=(117.0, -4.0, 67.0)
+[qa] boundary shelf S boom to shore  boost  outside_max=0.00 m top_y=0.0 end=(60.0, -4.0, 70.0)
+[qa] boundary shelf S boom to shore  jump   outside_max=0.00 m top_y=0.0 end=(58.0, -2.0, 70.0)
+[qa] boundary shelf S boom to shore  hover  outside_max=0.00 m top_y=10.8 end=(58.0, -3.0, 70.0)
+[qa] boundary shelf S boom to shore  dash   outside_max=0.00 m top_y=0.0 end=(60.0, -4.0, 70.0)
+[qa] boundary south fence rocks      boost  outside_max=0.00 m top_y=0.7 end=(-90.0, 1.0, 82.0)
+[qa] boundary south fence rocks      jump   outside_max=0.00 m top_y=4.9 end=(-95.0, 2.0, 82.0)
+[qa] boundary south fence rocks      hover  outside_max=0.00 m top_y=14.4 end=(-95.0, 2.0, 82.0)
+[qa] boundary south fence rocks      dash   outside_max=0.00 m top_y=0.4 end=(-82.0, 0.0, 71.0)
+[qa] boundary SW corner              boost  outside_max=0.00 m top_y=7.3 end=(-212.0, 7.0, 79.0)
+[qa] boundary SW corner              jump   outside_max=0.00 m top_y=10.3 end=(-212.0, 8.0, 79.0)
+[qa] boundary SW corner              hover  outside_max=0.00 m top_y=16.2 end=(-212.0, 9.0, 79.0)
+[qa] boundary SW corner              dash   outside_max=0.00 m top_y=7.3 end=(-208.0, 4.0, 73.0)
+[qa] boundary west hill fence        boost  outside_max=0.00 m top_y=10.1 end=(-212.0, 10.0, -200.0)
+[qa] boundary west hill fence        jump   outside_max=0.00 m top_y=13.0 end=(-212.0, 13.0, -200.0)
+[qa] boundary west hill fence        hover  outside_max=0.00 m top_y=16.2 end=(-212.0, 13.0, -200.0)
+[qa] boundary west hill fence        dash   outside_max=0.00 m top_y=10.1 end=(-212.0, 10.0, -200.0)
+[qa] boundary NW corner              boost  outside_max=0.00 m top_y=29.7 end=(-212.0, 30.0, -467.0)
+[qa] boundary NW corner              jump   outside_max=0.00 m top_y=32.7 end=(-212.0, 32.0, -467.0)
+[qa] boundary NW corner              hover  outside_max=0.00 m top_y=37.9 end=(-212.0, 32.0, -467.0)
+[qa] boundary NW corner              dash   outside_max=0.00 m top_y=29.7 end=(-212.0, 30.0, -467.0)
+[qa] boundary worst outside distance=0.00 m
+[autotest] b1_checkpoint_from_inside
+[qa] slope behind yard      reached=true climb=6.1 m end=(-208.0, 6.0, -60.0) slope_at_end=0.26
+[qa] slope north yard west  reached=true climb=25.2 m end=(-208.0, 25.0, -330.0) slope_at_end=0.91
+[qa] drive timeout toward (-60.0, 0.0, 92.0) at (-60.0, 0.0, 74.0)
+[qa] slope south rocks      reached=false climb=0.0 m end=(-60.0, 0.0, 74.0) slope_at_end=0.20
+[autotest] s1_west_slope
+[qa] camera vs hangar wall: arm=4.74/13.32 m cam=(-130.7, 6.4, -84.0) inside_hangar=true
+[autotest] c1_camera_wall
+[qa] camera at boundary: arm=13.32/13.32 m
+[autotest] v1_hangar_exit_24x17
+[autotest] v2_door_outside_24x17
+[autotest] v3_apron_gameplay_24x17
+[autotest] v4_apron_elevated_24x17
+[autotest] v5_water_edge_back_24x17
+[autotest] v6_road_to_city_24x17
+[autotest] v7_road_to_city_eye_24x17
+[autotest] v8_overview_24x17
+[autotest] v9_overview_high_24x17
+[autotest] v10_arena_from_quay_24x17
+[qa] perf frames=34953 avg=15.68ms (63.8 fps) p99=21.50ms (1% low 46.5 fps) max=72.6ms vram=1790MB static=209MB
+[qa] done step=7 done=true

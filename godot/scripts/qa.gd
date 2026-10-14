@@ -54,6 +54,11 @@ func run() -> void:
 	world.add_child(shot_cam)
 	var shots_only := OS.get_cmdline_user_args().has("--shots-only")
 	await _wait(1.5)
+	if OS.get_cmdline_user_args().has("--slopes-only"):
+		await slopes()
+		await _shot("s2_south_rocks")
+		get_tree().quit()
+		return
 	if OS.get_cmdline_user_args().has("--review"):
 		await review_views()
 		get_tree().quit()
@@ -113,7 +118,12 @@ func _drive(target: Vector3, boost := false, timeout := 30.0, radius := 5.0) -> 
 		await get_tree().physics_frame
 		t += get_physics_process_delta_time()
 	_release()
-	_log("drive timeout toward %s at %s" % [target.snapped(Vector3.ONE), mech.global_position.snapped(Vector3.ONE)])
+	var hits := []
+	for i in mech.get_slide_collision_count():
+		var c := mech.get_slide_collision(i)
+		var o := c.get_collider() as Node
+		hits.append("%s@%s" % [o.name if o else "?", c.get_position().snapped(Vector3.ONE * 0.1)])
+	_log("drive timeout toward %s at %s outside=%.1f m blocked_by=%s" % [target.snapped(Vector3.ONE), mech.global_position.snapped(Vector3.ONE), outside_dist(target), str(hits)])
 	return false
 
 static func outside_dist(p: Vector3) -> float:
@@ -352,7 +362,8 @@ func boundary() -> void:
 # ------------------------------------------------------------------ slopes
 func slopes() -> void:
 	for spec in [["behind yard", Vector3(-170, 0, -60), Vector3(-212, 0, -60)], ["north yard west", Vector3(-72, 0, -330), Vector3(-212, 0, -330)],
-			["south rocks", Vector3(-60, 0, 74), Vector3(-60, 0, 92)]]:
+			# south rocks: targets 3 m inside the boundary fence (the old target at z=92 lay 10 m outside it)
+			["south rocks", Vector3(-45, 0, 62), Vector3(-45, 0, 77.4)], ["south rocks west", Vector3(-150, 0, 62), Vector3(-150, 0, 86.4)]]:
 		var a: Vector3 = spec[1]
 		a.y = Site.ground(a.x, a.z) if not Site.in_paved(a.x, a.z) else 0.0
 		await _place(a, atan2(-(spec[2].x - a.x), -(spec[2].z - a.z)))
