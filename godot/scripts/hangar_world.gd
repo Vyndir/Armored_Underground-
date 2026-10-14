@@ -145,10 +145,10 @@ func _environment(laptop: bool) -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.9
+	env.ambient_light_energy = 0.75
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	env.tonemap_exposure = 0.95
+	env.tonemap_exposure = 1.0
 	env.tonemap_white = 6.0
 	env.ssao_enabled = true
 	env.ssao_radius = 2.2
@@ -166,11 +166,11 @@ func _environment(laptop: bool) -> void:
 	env.glow_hdr_threshold = 1.2
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.66, 0.76, 0.88)
-	env.fog_density = 0.00045
-	env.fog_aerial_perspective = 0.75
+	env.fog_density = 0.00026
+	env.fog_aerial_perspective = 0.55
 	env.fog_sky_affect = 0.25
 	env.volumetric_fog_enabled = not laptop
-	env.volumetric_fog_density = 0.0025
+	env.volumetric_fog_density = 0.0012
 	env.volumetric_fog_albedo = Color(0.9, 0.92, 0.95)
 	env.volumetric_fog_length = 160.0
 	env.adjustment_enabled = true
@@ -181,9 +181,11 @@ func _environment(laptop: bool) -> void:
 	_env = env
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
-	sun.rotation_degrees = Vector3(-44, 42, 0)
-	sun.light_color = Color(1.0, 0.95, 0.86)
-	sun.light_energy = 1.35
+	# sun from the south-south-east: the facade and the bay are side-lit from the
+	# arrival view instead of backlit
+	sun.rotation_degrees = Vector3(-40, 30, 0)
+	sun.light_color = Color(1.0, 0.93, 0.82)
+	sun.light_energy = 1.45
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if laptop else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 	sun.directional_shadow_max_distance = 200.0 if laptop else 320.0

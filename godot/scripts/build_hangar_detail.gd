@@ -26,12 +26,13 @@ static func build(root: Node3D) -> void:
 	mezzanine(root)
 	floor_detail(root)
 	exterior(root)
+	practicals(root)
 
 static func _frame_blue() -> StandardMaterial3D:
 	return Mats.painted("FrameBlue", Color(0.16, 0.22, 0.3), 0.45, 0.6)
 
 static func _grate() -> StandardMaterial3D:
-	return Mats.lit("Grating", Color(0.25, 0.26, 0.27), 0.6, 0.7, Tex.tread(), 0.6, Vector3(2, 2, 2))
+	return Mats.lit("Grating", Color(0.42, 0.43, 0.44), 0.55, 0.7, Tex.tread(), 0.6, Vector3(2, 2, 2))
 
 static func _control_glass() -> Material:
 	if Mats.get_m("ControlGlass"):
@@ -378,3 +379,54 @@ static func exterior(root: Node3D) -> void:
 		g.cylinder(Mats.yellow(), Vector3(x, 0, Z0 - 2.4), Vector3(x, 1.1, Z0 - 2.4), 0.16, 10)
 		g.cylinder(Mats.dark(), Vector3(x, 0.8, Z0 - 2.4), Vector3(x, 0.9, Z0 - 2.4), 0.17, 10)
 	g.commit(root, "HangarExterior", true, false)
+
+# ------------------------------------------------------------------ practicals
+## Human-scale entrance on the yard face and warm working light: a personnel
+## door with a canopy, stair and wall lamps beside the main opening, wall-pack
+## lamps high on the facade, and warm fill just inside the doorway so the hall
+## reads from the bright yard. Lights cast no shadows; night-only ones are in
+## the night_lights group.
+static func practicals(root: Node3D) -> void:
+	var g := Geo.new()
+	var x := X1
+	var dz := -43.0
+	# personnel door, frame, canopy and a short stair from the yard (2.1 m door: human scale)
+	g.box(Mats.navy(), Vector3(x + 0.08, 1.05 + 0.6, dz), Vector3(0.1, 2.1, 1.0))
+	g.box(Mats.steel(), Vector3(x + 0.05, 1.15 + 0.6, dz), Vector3(0.08, 2.4, 1.3))
+	g.box(Mats.glass(), Vector3(x + 0.14, 2.05 + 0.6, dz), Vector3(0.02, 0.5, 0.4))
+	g.box(Mats.dark(), Vector3(x + 1.0, 3.0, dz), Vector3(2.0, 0.12, 2.0))
+	for k in 3:
+		g.box(Mats.concrete("Plinth", Color(0.55, 0.54, 0.52), 0.0), Vector3(x + 0.6 + k * 0.4, 0.1 + (2 - k) * 0.2, dz), Vector3(0.4 + (2 - k) * 0.0, 0.2 + (2 - k) * 0.4, 1.6))
+	for s: float in [-0.9, 0.9]:
+		g.beam(Mats.yellow(), Vector3(x + 1.8, 0.0, dz + s), Vector3(x + 1.8, 1.6, dz + s), 0.05)
+		g.beam(Mats.yellow(), Vector3(x + 0.3, 1.6, dz + s), Vector3(x + 1.8, 1.6, dz + s), 0.05)
+	g.box(Mats.lamp(), Vector3(x + 0.12, 3.4, dz), Vector3(0.1, 0.18, 0.6))
+	g.box(Mats.glow("DoorSign", Color(0.2, 0.9, 0.4), 3.0), Vector3(x + 0.12, 3.0, dz - 0.9), Vector3(0.05, 0.25, 0.5))
+	# wall packs high on the facade either side of the opening
+	for wz: float in [Z0 + 3.0, Z1 - 3.0, Site.DOOR_Z0 - 1.5, Site.DOOR_Z1 + 1.5]:
+		g.box(Mats.dark(), Vector3(x + 0.25, 12.0, wz), Vector3(0.5, 0.45, 0.7))
+		g.box(Mats.lamp(), Vector3(x + 0.5, 11.8, wz), Vector3(0.05, 0.12, 0.55))
+	g.commit(root, "FacadePracticals", true, false)
+	for wz: float in [Z0 + 3.0, Z1 - 3.0]:
+		var l := OmniLight3D.new()
+		l.position = Vector3(x + 2.0, 11.0, wz)
+		l.light_color = Color(1.0, 0.82, 0.6)
+		l.light_energy = 2.0
+		l.omni_range = 18.0
+		l.add_to_group("night_lights")
+		root.add_child(l)
+	var porch := OmniLight3D.new()
+	porch.position = Vector3(x + 1.5, 3.2, dz)
+	porch.light_color = Color(1.0, 0.8, 0.58)
+	porch.light_energy = 1.4
+	porch.omni_range = 8.0
+	porch.add_to_group("night_lights")
+	root.add_child(porch)
+	# warm fill inside the doorway, always on: the hall glows against the cool yard
+	for fz: float in [Site.DOOR_Z0 + 4.0, Site.DOOR_Z1 - 4.0]:
+		var f := OmniLight3D.new()
+		f.position = Vector3(x - 9.0, 9.0, fz)
+		f.light_color = Color(1.0, 0.84, 0.62)
+		f.light_energy = 1.6
+		f.omni_range = 26.0
+		root.add_child(f)

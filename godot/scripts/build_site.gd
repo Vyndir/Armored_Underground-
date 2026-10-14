@@ -127,11 +127,13 @@ static func water(root: Node3D) -> void:
 
 # ------------------------------------------------------------------ yard, quay, slipway and ramp
 static func apron(root: Node3D, markings: Texture2D) -> void:
-	var conc := Mats.concrete("Apron", Color(0.62, 0.6, 0.57), 0.45)
+	var conc := Mats.concrete("Apron", Color(0.5, 0.49, 0.46), 0.6)
+	conc.set_shader_parameter("shore_x", Site.APRON_X1)
 	conc.set_shader_parameter("markings", markings)
 	conc.set_shader_parameter("markings_rect", Vector4(Site.APRON_X0, Site.APRON_Z0, Site.APRON_X1 - Site.APRON_X0, Site.APRON_Z1 - Site.APRON_Z0))
 	conc.set_shader_parameter("use_markings", 1.0)
-	var north := Mats.concrete("NorthYard", Color(0.6, 0.59, 0.56), 0.4)
+	var north := Mats.concrete("NorthYard", Color(0.47, 0.46, 0.44), 0.55)
+	north.set_shader_parameter("shore_x", Site.APRON_X1)
 	var wall := Mats.concrete("QuayWall", Color(0.55, 0.54, 0.5), 0.0)
 	var g := Geo.new()
 	var y := 0.0

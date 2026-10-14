@@ -35,8 +35,8 @@ static func build(root: Node3D, art: Dictionary) -> Dictionary:
 
 # ------------------------------------------------------------------ shell
 static func shell(root: Node3D, art: Dictionary) -> void:
-	var cladding := Mats.corrugated("Cladding", Color(0.8, 0.8, 0.78), 14)
-	var cladding_dark := Mats.corrugated("CladdingDark", Color(0.42, 0.44, 0.46), 14)
+	var cladding := Mats.facade("Cladding", Color(0.8, 0.78, 0.72), EAVE)
+	var cladding_dark := Mats.facade("CladdingDark", Color(0.36, 0.38, 0.4), EAVE)
 	var plinth := Mats.concrete("Plinth", Color(0.55, 0.54, 0.52), 0.0)
 	var g := Geo.new()
 	# plinth all round
@@ -222,17 +222,17 @@ static func interior_frame(root: Node3D) -> void:
 			l.position = Vector3(x, EAVE - 3.2, z)
 			l.rotation_degrees = Vector3(-90, 0, 0)
 			l.light_color = Color(1.0, 0.88, 0.72)
-			l.light_energy = 6.0
-			l.spot_range = 36.0
-			l.spot_angle = 62.0
+			l.light_energy = 9.0
+			l.spot_range = 34.0
+			l.spot_angle = 70.0
 			l.shadow_enabled = idx == 0   # one shadowed key light; the rest are fill
 			root.add_child(l)
 			idx += 1
 	var fill := OmniLight3D.new()
 	fill.position = Vector3(-108, 9, -74)
 	fill.omni_range = 50
-	fill.light_energy = 1.2
-	fill.light_color = Color(0.95, 0.9, 0.85)
+	fill.light_energy = 2.2
+	fill.light_color = Color(1.0, 0.88, 0.74)
 	root.add_child(fill)
 
 static func crane(root: Node3D) -> Node3D:
@@ -273,7 +273,7 @@ static func gantry(root: Node3D, c: Vector3, open_front: bool) -> Dictionary:
 	var gc := Geo.new() if open_front else null
 	var g := Geo.new()
 	var yel := Mats.yellow()
-	var grate := Mats.lit("Grating", Color(0.25, 0.26, 0.27), 0.6, 0.7, Tex.tread(), 0.6, Vector3(2, 2, 2))
+	var grate := Mats.lit("Grating", Color(0.42, 0.43, 0.44), 0.55, 0.7, Tex.tread(), 0.6, Vector3(2, 2, 2))
 	for side: float in [-1.0, 1.0]:
 		var tx := c.x - 1.0
 		var tz := c.z + side * 6.3
@@ -314,9 +314,11 @@ static func gantry(root: Node3D, c: Vector3, open_front: bool) -> Dictionary:
 		# hose reel on the tower leg
 		g.cylinder(Mats.orange(), Vector3(tx - 2.1, 1.8, tz + side * 1.6), Vector3(tx - 2.1, 1.8, tz + side * 2.0), 0.55, 14)
 		g.cylinder(Mats.rubber(), Vector3(tx - 2.1, 1.8, tz + side * 1.65), Vector3(tx - 2.1, 1.8, tz + side * 1.95), 0.42, 14)
-	# rear walkway joining the towers at chest-deck level, under the chase camera's sightline
-	g.box(grate, Vector3(c.x - 3.6, DECKS[1], c.z), Vector3(1.8, 0.2, 12.6))
-	g.beam(yel, Vector3(c.x - 4.5, DECKS[1] + 1.1, c.z - 6.3), Vector3(c.x - 4.5, DECKS[1] + 1.1, c.z + 6.3), 0.07)
+	# rear walkway joining the towers (parked bays only: the spawn bay stays open
+	# behind the frame so the chase camera's arrival view is clear)
+	if not open_front:
+		g.box(grate, Vector3(c.x - 3.6, DECKS[1], c.z), Vector3(1.8, 0.2, 12.6))
+		g.beam(yel, Vector3(c.x - 4.5, DECKS[1] + 1.1, c.z - 6.3), Vector3(c.x - 4.5, DECKS[1] + 1.1, c.z + 6.3), 0.07)
 	# floor clamps and the bay outline in hazard paint
 	for side: float in [-1.0, 1.0]:
 		var clamp_g: Geo = gc if gc else g
@@ -543,7 +545,7 @@ static func annex(root: Node3D) -> void:
 	var x1 := -88.0
 	var z0 := Z1
 	var z1 := Z1 + 16.0
-	var cl := Mats.corrugated("CladdingWarm", Color(0.74, 0.72, 0.68), 10)
+	var cl := Mats.facade("CladdingWarm", Color(0.76, 0.73, 0.66), 12.0, 2.5)
 	g.aabb(cl, Vector3(x0, 0, z0), Vector3(x1, 12, z1), 4.0)
 	g.aabb(Mats.dark(), Vector3(x0 - 0.3, 12, z0), Vector3(x1 + 0.3, 12.6, z1 + 0.3))
 	for fl in 2:

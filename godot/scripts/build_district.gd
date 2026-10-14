@@ -90,7 +90,7 @@ static func slice_road(root: Node3D) -> void:
 ## doors sized for trucks (5 m) beside 2.1 m personnel doors: a human-scale cue.
 static func sheds(root: Node3D) -> void:
 	var g := Geo.new()
-	var wall := Mats.corrugated("ShedCladding", Color(0.62, 0.64, 0.63), 10)
+	var wall := Mats.facade("ShedCladding", Color(0.62, 0.64, 0.63), 9.0, 2.4)
 	var roof := Mats.corrugated("ShedRoof", Color(0.36, 0.38, 0.4), 12)
 	for spec in [[-246.0, 30.0, Color(0.62, 0.64, 0.63)], [-320.0, 40.0, Color(0.7, 0.66, 0.58)], [-410.0, 34.0, Color(0.55, 0.6, 0.64)]]:
 		var zc: float = spec[0]
@@ -99,7 +99,7 @@ static func sheds(root: Node3D) -> void:
 		var x1 := Site.STRIP_X0 - 4.0
 		var h := 9.0
 		var c := Vector3((x0 + x1) * 0.5, 0, zc)
-		g.box(Mats.corrugated("Shed%s" % (spec[2] as Color).to_html(), spec[2], 10), c + Vector3(0, h * 0.5, 0), Vector3(x1 - x0, h, len))
+		g.box(Mats.facade("Shed%s" % (spec[2] as Color).to_html(), spec[2], 9.0, 2.4), c + Vector3(0, h * 0.5, 0), Vector3(x1 - x0, h, len))
 		# gable roof
 		var w := x1 - x0
 		for s: float in [-1.0, 1.0]:

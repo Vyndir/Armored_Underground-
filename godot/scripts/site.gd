@@ -56,9 +56,11 @@ const HANGAR_Z0 := -109.0
 const HANGAR_Z1 := -39.0
 const HANGAR_H := 21.0
 static var DOOR_W := 24.0
-static var DOOR_H := 11.0
+static var DOOR_H := 17.0     # selected clear opening height (24 x 17 m)
 static var DOOR_Z0 := -86.0
 static var DOOR_Z1 := -62.0
+## Planning assumption only (not verified): future wing/transform span the opening must clear.
+const WING_CLEARANCE_ASSUMED := 14.0
 const BAYS := [Vector3(-114.0, 0.0, -94.0), Vector3(-114.0, 0.0, -74.0), Vector3(-114.0, 0.0, -54.0)]
 const SPAWN := Vector3(-114.0, 0.0, -74.0)   # centre service bay, facing the door
 

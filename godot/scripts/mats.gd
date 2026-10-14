@@ -58,6 +58,13 @@ static func concrete(key := "Concrete", color := Color(0.6, 0.59, 0.56), wet := 
 		"wetness": wet, "grooves": grooves, "triplanar_walls": 1.0,
 	})
 
+## Weathered industrial cladding (see shaders/facade.gdshader).
+static func facade(key: String, color: Color, eave := 21.0, panel_h := 3.0) -> ShaderMaterial:
+	return shader(key, "res://shaders/facade.gdshader", {
+		"ribs": Tex.corrugated(16), "noise_a": Tex.noise(0.02, 71), "noise_b": Tex.noise(0.06, 72),
+		"base_color": color, "eave": eave, "panel_h": panel_h,
+	})
+
 static func painted(key: String, color: Color, rough := 0.5, metal := 0.35) -> StandardMaterial3D:
 	return lit(key, color, rough, metal, Tex.noise(0.08, key.hash() % 97, 256, true, 2.0), 0.35, Vector3(0.25, 0.25, 0.25), true)
 
