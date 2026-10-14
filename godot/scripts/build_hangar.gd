@@ -225,7 +225,7 @@ static func interior_frame(root: Node3D) -> void:
 			l.light_energy = 6.0
 			l.spot_range = 36.0
 			l.spot_angle = 62.0
-			l.shadow_enabled = idx % 2 == 0
+			l.shadow_enabled = idx == 0   # one shadowed key light; the rest are fill
 			root.add_child(l)
 			idx += 1
 	var fill := OmniLight3D.new()

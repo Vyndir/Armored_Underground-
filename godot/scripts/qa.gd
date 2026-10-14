@@ -54,6 +54,10 @@ func run() -> void:
 	world.add_child(shot_cam)
 	var shots_only := OS.get_cmdline_user_args().has("--shots-only")
 	await _wait(1.5)
+	if OS.get_cmdline_user_args().has("--review"):
+		await review_views()
+		get_tree().quit()
+		return
 	if OS.get_cmdline_user_args().has("--perf-tour"):
 		await perf_tour()
 		get_tree().quit()
@@ -371,6 +375,110 @@ func camera_checks() -> void:
 	cam.yaw = -PI * 0.5
 	await _wait(1.2)
 	_log("camera at boundary: arm=%.2f/%.2f m" % [cam.arm.get_hit_length(), cam.arm.spring_length])
+
+# ------------------------------------------------------------------ review views
+## Matching before/after views from the gameplay camera (and two fixed cameras),
+## each captured clean (HUD hidden) and, for the key ones, with the HUD.
+func _gameplay(name: String, pos: Vector3, yaw: float, cam_yaw: float, pitch := -0.18, hud_too := false) -> void:
+	await _place(pos, yaw)
+	if Site.in_shelf(pos.x, pos.z):
+		mech.teleport(Vector3(pos.x, Site.SHELF_FLOOR + 0.2, pos.z), yaw)
+	cam.yaw = cam_yaw
+	cam.pitch = pitch
+	world.hud.visible = false
+	await _wait(1.6)
+	await _shot(name + "_clean")
+	if hud_too:
+		world.hud.visible = true
+		await _wait(0.3)
+		await _shot(name + "_hud")
+	world.hud.visible = true
+
+static func _tris(m: Mesh) -> int:
+	if m == null:
+		return 0
+	var n := 0
+	for s in m.get_surface_count():
+		var arr := m.surface_get_arrays(s)
+		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		n += idx.size() / 3 if idx.size() > 0 else (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+	return n
+
+## Static scene cost: triangles by top-level node (x instances for multimeshes),
+## how much of it casts shadows, surfaces (draw calls per pass) and lights.
+func scene_costs() -> void:
+	var rows := {}
+	var lights := 0
+	var shadow_lights := 0
+	var labels := 0
+	for n in world.find_children("*", "", true, false):
+		var top: Node = n
+		while top.get_parent() != world:
+			top = top.get_parent()
+		var key := String(top.name)
+		var t := 0
+		var surf := 0
+		var shadow := false
+		if n is MeshInstance3D:
+			var mi := n as MeshInstance3D
+			if not mi.visible:
+				continue
+			t = _tris(mi.mesh)
+			surf = mi.mesh.get_surface_count() if mi.mesh else 0
+			shadow = mi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		elif n is MultiMeshInstance3D:
+			var mm := (n as MultiMeshInstance3D).multimesh
+			if mm:
+				t = _tris(mm.mesh) * mm.instance_count
+				surf = mm.mesh.get_surface_count() if mm.mesh else 0
+			shadow = (n as GeometryInstance3D).cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		elif n is Light3D:
+			lights += 1
+			if (n as Light3D).shadow_enabled:
+				shadow_lights += 1
+			continue
+		elif n is Label3D:
+			labels += 1
+			continue
+		else:
+			continue
+		if not rows.has(key):
+			rows[key] = [0, 0, 0]
+		rows[key][0] += t
+		rows[key][1] += surf
+		if shadow:
+			rows[key][2] += t
+	var keys := rows.keys()
+	keys.sort_custom(func(a, b): return rows[a][0] > rows[b][0])
+	var total := 0
+	var total_sh := 0
+	var total_s := 0
+	for k in keys:
+		total += rows[k][0]
+		total_sh += rows[k][2]
+		total_s += rows[k][1]
+	_log("costs total_tris=%.2fM shadow_casting_tris=%.2fM surfaces=%d lights=%d shadowed_lights=%d label3d=%d" % [total / 1e6, total_sh / 1e6, total_s, lights, shadow_lights, labels])
+	for k in keys.slice(0, 28):
+		_log("cost %-22s tris=%8d surfaces=%4d shadow_tris=%8d" % [k, rows[k][0], rows[k][1], rows[k][2]])
+
+func review_views() -> void:
+	await scene_costs()
+	var tag := ("night_" if world.night else "") + "%dx%d" % [int(Site.DOOR_W), int(Site.DOOR_H)]
+	var east := -PI * 0.5
+	var west := PI * 0.5
+	await _wait(2.0)
+	await _gameplay("r1_interior_%s" % tag, Vector3(-96, 0, -74), west, west, -0.12)
+	await _gameplay("r2_arrival_spawn_%s" % tag, Site.SPAWN, east, east, -0.1, true)
+	await _gameplay("r3_doorway_to_bay_%s" % tag, Vector3(-84, 0, -74), east, east - 0.12, -0.08, true)
+	await _gameplay("r4_apron_back_to_hangar_%s" % tag, Vector3(-28, 0, -70), west, west + 0.1, -0.1)
+	await _gameplay("r5_shallow_water_%s" % tag, Vector3(92, 0, -8), world.yaw_to(Vector3(-90, 0, -74)), PI * 0.5 + 0.35, -0.06)
+	var to_bridge := atan2(-(HangarWorld.BRIDGE.x - 30.0), -(HangarWorld.BRIDGE.z + 120.0))
+	await _gameplay("r6_bridge_city_panorama_%s" % tag, Vector3(30, 0, -120), to_bridge, to_bridge + 0.15, -0.02)
+	# the doorway with the frame standing in it, seen from the yard
+	await _place(Vector3(-80, 0, -74), east)
+	world.hud.visible = false
+	await _view("r7_doorway_scale_%s_clean" % tag, Vector3(-36, 4.5, -52), Vector3(-80, 8.0, -74), 1.2)
+	world.hud.visible = true
 
 # ------------------------------------------------------------------ performance tour
 ## A fixed gameplay route with the normal chase camera, no teleports: out of the

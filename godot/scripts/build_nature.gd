@@ -7,12 +7,12 @@ extends RefCounted
 static var _rng := RandomNumberGenerator.new()
 
 ## Faceted granite boulder: a subdivided sphere pushed around by noise and squashed.
-static func rock_mesh(seed: int) -> ArrayMesh:
+static func rock_mesh(seed: int, segs := 14, rings := 8) -> ArrayMesh:
 	var sphere := SphereMesh.new()
 	sphere.radius = 1.0
 	sphere.height = 2.0
-	sphere.radial_segments = 14
-	sphere.rings = 8
+	sphere.radial_segments = segs
+	sphere.rings = rings
 	var arr := sphere.get_mesh_arrays()
 	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
 	var fn := FastNoiseLite.new()
@@ -43,8 +43,10 @@ static func rocks(root: Node3D) -> void:
 		"grass": Color(0.5, 0.48, 0.45), "litter": Color(0.42, 0.4, 0.37),
 	})
 	var meshes := []
-	for k in 8:
+	var far_meshes := []
+	for k in 4:
 		meshes.append(rock_mesh(100 + k))
+		far_meshes.append(rock_mesh(100 + k, 7, 4))
 	var per := []
 	for k in meshes.size():
 		per.append([])
@@ -81,22 +83,15 @@ static func rocks(root: Node3D) -> void:
 	for k in 160:
 		var x := _rng.randf_range(-600.0, 300.0)
 		var z := _rng.randf_range(-560.0, 260.0)
-		if not Site.on_land(x, z) or Site.in_apron(x, z, 30.0):
+		if not Site.on_land(x, z) or Site.in_paved(x, z, 30.0):
 			continue
 		var s := _rng.randf_range(2.0, 7.0)
 		per[_rng.randi() % meshes.size()].append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(s, s * 0.7, s)), Vector3(x, Site.ground(x, z) - s * 0.3, z)))
 	for k in meshes.size():
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = meshes[k]
-		mm.instance_count = per[k].size()
-		for i in per[k].size():
-			mm.set_instance_transform(i, per[k][i])
-		var mmi := MultiMeshInstance3D.new()
-		mmi.name = "Rocks%d" % k
-		mmi.multimesh = mm
-		mmi.material_override = mat
-		root.add_child(mmi)
+		var items := []
+		for xf in per[k]:
+			items.append([xf, Color(1, 1, 1)])
+		Vegetation.chunked(root, "Rocks%d" % k, meshes[k], far_meshes[k], items, mat, false, 420.0, 1100.0)
 		# solid boulders near the playable shore
 		for xf in per[k]:
 			var t: Transform3D = xf
@@ -118,33 +113,7 @@ static func pine_mesh() -> ArrayMesh:
 	return m
 
 static func trees(root: Node3D) -> void:
-	_rng.seed = 11
-	var mesh := pine_mesh()
-	var xfs := []
-	for k in 9000:
-		var x := _rng.randf_range(-950.0, 380.0)
-		var z := _rng.randf_range(-950.0, 380.0)
-		if not Site.on_land(x, z) or Site.in_apron(x, z, 14.0):
-			continue
-		var h := Site.ground(x, z)
-		if h < Site.WATER_Y + 1.6 or Site.slope(x, z) > 0.95:   # leave the bluff faces bare
-			continue
-		var dens := 0.5 + 0.5 * Site.n2(x, z, 0.012, 77)
-		if _rng.randf() > dens:
-			continue
-		var s := _rng.randf_range(0.7, 1.45)
-		xfs.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(s, s * _rng.randf_range(0.85, 1.25), s)), Vector3(x, h - 0.3, z)))
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = mesh
-	mm.instance_count = xfs.size()
-	for i in xfs.size():
-		mm.set_instance_transform(i, xfs[i])
-	var mmi := MultiMeshInstance3D.new()
-	mmi.name = "Pines"
-	mmi.multimesh = mm
-	mmi.visibility_range_end = 2600
-	root.add_child(mmi)
+	Vegetation.forest(root)
 
 # ------------------------------------------------------------------ across the bay
 static func far_side(root: Node3D) -> void:

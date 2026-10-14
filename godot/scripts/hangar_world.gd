@@ -89,6 +89,7 @@ func _ready() -> void:
 	sfx.start_ambience(Vector3(-108, 9, -74), self)
 	_display_mechs()
 	_spawn_player()
+	_set_night_lights(night)
 	if night:
 		_apply_night()
 	hud = Hud.new()
@@ -157,8 +158,8 @@ func _environment(laptop: bool) -> void:
 	env.ssr_max_steps = 72
 	env.sdfgi_enabled = not laptop
 	env.sdfgi_use_occlusion = true
-	env.sdfgi_min_cell_size = 0.4
-	env.sdfgi_cascades = 6
+	env.sdfgi_min_cell_size = 0.5
+	env.sdfgi_cascades = 4
 	env.glow_enabled = true
 	env.glow_intensity = 0.5
 	env.glow_bloom = 0.04
@@ -185,12 +186,17 @@ func _environment(laptop: bool) -> void:
 	sun.light_energy = 1.35
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if laptop else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
-	sun.directional_shadow_max_distance = 250.0 if laptop else 420.0
+	sun.directional_shadow_max_distance = 200.0 if laptop else 320.0
 	sun.directional_shadow_blend_splits = true
 	sun.light_angular_distance = 0.6
 	sun.light_volumetric_fog_energy = 0.6
 	add_child(sun)
 	_sun = sun
+
+## Lamps that only matter after dark are hidden by day so they cost nothing.
+func _set_night_lights(on: bool) -> void:
+	for n in get_tree().get_nodes_in_group("night_lights"):
+		(n as Node3D).visible = on
 
 ## Night: moonlight from the same side as the day sun, a dark sky, lamps on.
 func _apply_night() -> void:
@@ -223,6 +229,9 @@ func _display_mechs() -> void:
 		r.setup(s[1], s[2], s[3])
 		r.position = s[0]
 		r.rotation.y = -PI * 0.5   # facing the door (east)
+		# parked frames only matter near the hangar
+		for mi in r.find_children("*", "MeshInstance3D", true, false):
+			(mi as MeshInstance3D).visibility_range_end = 240.0
 
 ## The wading target: a tall orange spar buoy standing on the shelf.
 func _marker_buoy() -> void:
