@@ -29,6 +29,7 @@ func soft_mat(col: Color, additive := false, unshaded := true) -> StandardMateri
 	m.albedo_color = col
 	m.albedo_texture = _soft
 	m.disable_receive_shadows = true
+	m.disable_fog = additive   # additive sprites must not pick up fog as extra light
 	return m
 
 func _system(key: String, amount: int, lifetime: float, pm: ParticleProcessMaterial, size: float, mat: Material, one_shot := true) -> GPUParticles3D:

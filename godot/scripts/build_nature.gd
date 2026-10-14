@@ -118,71 +118,161 @@ static func trees(root: Node3D) -> void:
 # ------------------------------------------------------------------ across the bay
 static func far_side(root: Node3D) -> void:
 	_rng.seed = 21
-	var haze := Mats.lit("FarMountain", Color(0.33, 0.4, 0.42), 0.95)
-	var forest := Mats.lit("FarForest", Color(0.2, 0.27, 0.2), 0.95)
-	# mountain ring: a jagged skirt of ridges from north-west round to east
-	var g := Geo.new()
-	var segs := 140
-	for k in segs:
-		var a0 := lerpf(-0.15 * PI, 1.1 * PI, float(k) / segs)
-		var a1 := lerpf(-0.15 * PI, 1.1 * PI, float(k + 1) / segs)
-		for ring in [[2600.0, 3600.0, 380.0, forest], [4200.0, 6200.0, 1100.0, haze]]:
-			var r0: float = ring[0]
-			var r1: float = ring[1]
-			var hm: float = ring[2]
-			var m: Material = ring[3]
-			var p0 := Vector3(cos(a0) * r0 + 400, Site.WATER_Y, -sin(a0) * r0 - 500)
-			var p1 := Vector3(cos(a1) * r0 + 400, Site.WATER_Y, -sin(a1) * r0 - 500)
-			var h0 := hm * (0.35 + 0.65 * absf(Site.n2(a0 * 900, r0, 0.004, 5)) + 0.25 * Site.n2(a0 * 3000, r0, 0.02, 6))
-			var h1 := hm * (0.35 + 0.65 * absf(Site.n2(a1 * 900, r0, 0.004, 5)) + 0.25 * Site.n2(a1 * 3000, r0, 0.02, 6))
-			var q0 := Vector3(cos(a0) * r1 + 400, Site.WATER_Y + h0, -sin(a0) * r1 - 500)
-			var q1 := Vector3(cos(a1) * r1 + 400, Site.WATER_Y + h1, -sin(a1) * r1 - 500)
-			var inward := Vector3(-cos(a0), 0.4, sin(a0))
-			g.quad(m, p0, p1, q1, q0, inward, 200.0, Vector2.ZERO, false)
-	var mi := g.commit(root, "Mountains", false, false)
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# mountain layers: radial height fields with ridged noise, forest green on the
+	# slopes grading to rock at the crests; the far range is bluer with distance
+	_mountain_layer(root, "MountainsNear", 2500.0, 3700.0, 260.0, Color(0.13, 0.22, 0.11), Color(0.3, 0.34, 0.28), 7)
+	_mountain_layer(root, "MountainsFar", 4100.0, 6400.0, 680.0, Color(0.17, 0.25, 0.2), Color(0.36, 0.4, 0.42), 13)
 	bridge(root)
-	skyline(root)
+	City.build(root)
 	islets(root)
 
+static func _ridge(a: float, r: float, seed: int) -> float:
+	var n := 0.0
+	var amp := 0.6
+	var f := 1.0
+	for o in 4:
+		n += (1.0 - absf(Site.n2(a * 700.0 * f, r * 0.6 * f, 0.004, seed + o))) * amp
+		amp *= 0.5
+		f *= 2.1
+	return n
+
+static func _mountain_layer(root: Node3D, name: String, r0: float, r1: float, hmax: float, low: Color, high: Color, seed: int) -> void:
+	var segs := 200
+	var rows := 9
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var grid := []
+	for j in rows + 1:
+		var row := []
+		var r := lerpf(r0, r1, float(j) / rows)
+		for k in segs + 1:
+			var a := lerpf(-0.18 * PI, 1.12 * PI, float(k) / segs)
+			# profile across the ring: rises from the shore side, peaks, then falls behind
+			var t := float(j) / rows
+			var prof := sin(PI * clampf(t * 1.15, 0.0, 1.0))
+			var h := hmax * prof * (0.25 + 0.75 * pow(_ridge(a, r, seed), 1.6)) if j > 0 else 0.0
+			row.append(Vector3(cos(a) * r + 400.0, Site.WATER_Y - 4.0 + h, -sin(a) * r - 500.0))
+		grid.append(row)
+	for j in rows:
+		for k in segs:
+			var p00: Vector3 = grid[j][k]
+			var p01: Vector3 = grid[j][k + 1]
+			var p10: Vector3 = grid[j + 1][k]
+			var p11: Vector3 = grid[j + 1][k + 1]
+			for tri in [[p00, p10, p01], [p01, p10, p11]]:
+				var a: Vector3 = tri[0]
+				var b: Vector3 = tri[1]
+				var c: Vector3 = tri[2]
+				var n := (b - a).cross(c - a).normalized()
+				if n.y < 0.0:
+					n = -n
+					var tmp := b
+					b = c
+					c = tmp
+				for v: Vector3 in [a, c, b]:
+					var hy := clampf((v.y - Site.WATER_Y) / hmax, 0.0, 1.0)
+					var col := low.lerp(high, smoothstep(0.35, 0.85, hy + (1.0 - n.y) * 0.4))
+					st.set_color(col)
+					st.set_normal(n)
+					st.add_vertex(v)
+	var m := StandardMaterial3D.new()
+	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true
+	m.roughness = 0.95
+	var mi := MeshInstance3D.new()
+	mi.name = name
+	mi.mesh = st.commit()
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
+
+## The Central Bridge: a monumental suspension bridge across the bay (same
+## position and span as before). Stone-coloured towers on wide piers with portal
+## frames, a deck with stiffening-truss edges, two main cables sweeping from
+## anchorages on both banks over the towers, suspenders, side-span piers, and
+## deck lamps and tower beacons for night. Far scenery: no shadows, no collision.
+const BRIDGE_Z := -1700.0
+const BRIDGE_DECK := 47.0
+const BRIDGE_TOWERS := [370.0, 1130.0]
+const BRIDGE_ANCHORS := [-150.0, 1680.0]
+
 static func bridge(root: Node3D) -> void:
-	var stone := Mats.lit("BridgeStone", Color(0.82, 0.78, 0.7), 0.85)
-	var steel := Mats.lit("BridgeSteel", Color(0.55, 0.52, 0.48), 0.6, 0.4)
+	var stone := Mats.lit("BridgeStone", Color(0.78, 0.74, 0.66), 0.85)
+	var steel := Mats.lit("BridgeSteel", Color(0.46, 0.47, 0.5), 0.55, 0.5)
+	var dark := Mats.lit("BridgeUnder", Color(0.22, 0.23, 0.25), 0.8, 0.3)
+	var lamp := Mats.glow("BridgeLamp", Color(1.0, 0.85, 0.6), 5.0)
+	var beacon := Mats.glow("BridgeBeacon", Color(1.0, 0.2, 0.15), 8.0)
 	var g := Geo.new()
-	var z := -1700.0
-	var x0 := -200.0
-	var x1 := 1700.0
-	var deck := 45.0
-	g.box(steel, Vector3((x0 + x1) * 0.5, deck, z), Vector3(x1 - x0, 4.0, 30.0), Basis(), 20.0, [], false)
-	var towers: Array[float] = [x0 + (x1 - x0) * 0.3, x0 + (x1 - x0) * 0.7]
-	for tx in towers:
-		for s: float in [-1.0, 1.0]:
-			g.box(stone, Vector3(tx, (Site.WATER_Y + 150.0) * 0.5, z + s * 18.0), Vector3(12, 152, 10), Basis(), 10.0, [], false)
-		for by: float in [60.0, 100.0, 140.0]:
-			g.box(stone, Vector3(tx, by, z), Vector3(10, 7, 46), Basis(), 10.0, [], false)
-		g.cylinder(stone, Vector3(tx, 150, z), Vector3(tx, 168, z), 5.0, 4, 0.2, true, false)
-	# cables: catenary main span plus side spans
+	var z := BRIDGE_Z
+	var x0: float = BRIDGE_ANCHORS[0]
+	var x1: float = BRIDGE_ANCHORS[1]
+	var deck := BRIDGE_DECK
+	var top := 175.0
+	# deck: box girder, darker underside, truss chords and diagonals along both edges
+	g.box(steel, Vector3((x0 + x1) * 0.5, deck - 2.0, z), Vector3(x1 - x0, 4.0, 30.0), Basis(), 20.0, [], false)
+	g.box(dark, Vector3((x0 + x1) * 0.5, deck - 4.3, z), Vector3(x1 - x0, 0.6, 26.0), Basis(), 20.0, [], false)
 	for s: float in [-1.0, 1.0]:
-		var pts := []
-		for k in 61:
-			var x := lerpf(x0, x1, k / 60.0)
-			var y := 0.0
-			if x < towers[0]:
-				y = lerpf(deck + 6, 148, (x - x0) / (towers[0] - x0))
-			elif x > towers[1]:
-				y = lerpf(148, deck + 6, (x - towers[1]) / (x1 - towers[1]))
-			else:
-				var t: float = (x - towers[0]) / (towers[1] - towers[0]) * 2.0 - 1.0
-				y = deck + 8 + (148 - deck - 8) * t * t
-			pts.append(Vector3(x, y, z + s * 14.0))
-		for k in pts.size() - 1:
-			g.beam(steel, pts[k], pts[k + 1], 1.2, -1.0, false)
+		var ez := z + s * 15.5
+		g.beam(steel, Vector3(x0, deck + 5.0, ez), Vector3(x1, deck + 5.0, ez), 0.8)
+		var x := x0
+		var k := 0
+		while x < x1:
+			var xn := minf(x + 15.0, x1)
+			g.beam(steel, Vector3(x, deck, ez), Vector3(xn, deck + 5.0, ez) if k % 2 == 0 else Vector3(x, deck + 5.0, ez), 0.45)
+			g.beam(steel, Vector3(x, deck + 5.0, ez), Vector3(xn, deck, ez) if k % 2 == 1 else Vector3(xn, deck + 5.0, ez), 0.45)
 			if k % 2 == 0:
-				g.beam(steel, pts[k], Vector3(pts[k].x, deck, pts[k].z), 0.35, -1.0, false)
-	# arches under the approaches
-	for k in 8:
-		var ax := lerpf(x0 - 300, x0, k / 8.0)
-		g.box(stone, Vector3(ax, (deck + Site.WATER_Y) * 0.5, z), Vector3(8, deck - Site.WATER_Y, 24), Basis(), 10.0, [], false)
+				g.box(lamp, Vector3(x, deck + 6.2, ez), Vector3(0.6, 0.6, 0.6), Basis(), 1.0, [], false)
+			x = xn
+			k += 1
+	# towers: two tapering legs, three portal frames, caps with beacons, wide piers
+	for tx: float in BRIDGE_TOWERS:
+		g.box(stone, Vector3(tx, Site.WATER_Y + 6.0, z), Vector3(34.0, 16.0, 62.0), Basis(), 10.0, [], false)
+		for s: float in [-1.0, 1.0]:
+			var lz := z + s * 17.0
+			var steps := 6
+			for k in steps:
+				var y0 := Site.WATER_Y + 14.0 + (top - 14.0) * k / steps
+				var y1 := Site.WATER_Y + 14.0 + (top - 14.0) * (k + 1) / steps
+				var w := lerpf(14.0, 8.5, float(k) / steps)
+				g.box(stone, Vector3(tx, (y0 + y1) * 0.5, lz - s * float(k) * 0.4), Vector3(w, y1 - y0 + 0.2, w * 0.8), Basis(), 10.0, [], false)
+			g.box(stone, Vector3(tx, top + 4.0, lz - s * 2.4), Vector3(10.0, 8.0, 8.0), Basis(), 10.0, [], false)
+			g.box(beacon, Vector3(tx, top + 8.6, lz - s * 2.4), Vector3(1.4, 1.2, 1.4), Basis(), 1.0, [], false)
+		for py: float in [deck - 9.0, 105.0, 150.0]:
+			g.box(stone, Vector3(tx, py, z), Vector3(9.0, 9.0, 34.0), Basis(), 10.0, [], false)
+			g.box(dark, Vector3(tx + 4.6, py - 1.5, z), Vector3(0.3, 4.0, 20.0), Basis(), 10.0, [], false)
+	# anchorages: massive concrete blocks on each bank
+	for ax: float in BRIDGE_ANCHORS:
+		var gy := Site.ground(ax, z) if ax < 900.0 else Site.east_ground(ax, z)
+		g.box(stone, Vector3(ax, gy + 10.0, z), Vector3(40.0, 26.0, 52.0), Basis(), 10.0, [], false)
+	# side-span piers over the land on both banks
+	for px: float in [x0 + 70.0, x0 + 190.0, x1 - 70.0, x1 - 190.0]:
+		var gy := maxf(Site.ground(px, z) if px < 900.0 else Site.east_ground(px, z), Site.WATER_Y)
+		g.box(stone, Vector3(px, (gy + deck - 4.0) * 0.5, z), Vector3(7.0, deck - 4.0 - gy, 24.0), Basis(), 10.0, [], false)
+	# main cables and suspenders
+	var t0: float = BRIDGE_TOWERS[0]
+	var t1: float = BRIDGE_TOWERS[1]
+	for s: float in [-1.0, 1.0]:
+		var cz := z + s * 14.5
+		var pts := []
+		var n := 96
+		for k in n + 1:
+			var x := lerpf(x0, x1, float(k) / n)
+			var y := 0.0
+			if x < t0:
+				var u := (x - x0) / (t0 - x0)
+				y = lerpf(deck + 2.0, top + 2.0, u * u * 0.4 + u * 0.6)
+			elif x > t1:
+				var u := (x1 - x) / (x1 - t1)
+				y = lerpf(deck + 2.0, top + 2.0, u * u * 0.4 + u * 0.6)
+			else:
+				var t := (x - t0) / (t1 - t0) * 2.0 - 1.0
+				y = deck + 7.0 + (top + 2.0 - deck - 7.0) * t * t
+			pts.append(Vector3(x, y, cz))
+		for k in pts.size() - 1:
+			g.beam(steel, pts[k], pts[k + 1], 1.3, -1.0, false)
+			var p: Vector3 = pts[k]
+			if p.y > deck + 6.0:
+				g.beam(steel, p, Vector3(p.x, deck + 5.0, p.z), 0.3, -1.0, false)
 	var mi := g.commit(root, "CentralBridge", false, false)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 

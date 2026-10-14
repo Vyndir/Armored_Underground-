@@ -158,7 +158,9 @@ static func bed(x: float, z: float, d: float, rough: float) -> float:
 		deep = maxf(WATER_Y - 1.2 + d * 0.14 + rough * 0.6, -28.0)
 	if e <= 0.0:
 		return SHELF_FLOOR
-	return lerpf(SHELF_FLOOR, deep, smoothstep(0.0, 10.0, e))
+	# a wide, irregular drop-off (all beyond the collision margin past the booms)
+	var edge := e + n2(x, z, 0.03, 15) * 6.0
+	return lerpf(SHELF_FLOOR, deep, smoothstep(0.0, 24.0, maxf(edge, 0.0)))
 
 ## Natural ground height (paved areas, quay and ramps are built on top of this).
 static func ground(x: float, z: float) -> float:

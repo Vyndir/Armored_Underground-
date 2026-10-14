@@ -474,6 +474,10 @@ func review_views() -> void:
 	await _gameplay("r5_shallow_water_%s" % tag, Vector3(92, 0, -8), world.yaw_to(Vector3(-90, 0, -74)), PI * 0.5 + 0.35, -0.06)
 	var to_bridge := atan2(-(HangarWorld.BRIDGE.x - 30.0), -(HangarWorld.BRIDGE.z + 120.0))
 	await _gameplay("r6_bridge_city_panorama_%s" % tag, Vector3(30, 0, -120), to_bridge, to_bridge + 0.15, -0.02)
+	# elevated overview: hangar, shoreline, road, bridge and downtown together
+	world.hud.visible = false
+	await _view("r8_overview_%s_clean" % tag, Vector3(420, 360, 420), Vector3(150, 0, -1000), 1.5)
+	world.hud.visible = true
 	# the doorway with the frame standing in it, seen from the yard
 	await _place(Vector3(-80, 0, -74), east)
 	world.hud.visible = false

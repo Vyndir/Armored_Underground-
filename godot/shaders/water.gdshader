@@ -20,6 +20,7 @@ uniform float normal_strength = 0.55;
 uniform float swell_height = 0.3;
 uniform float foam_width = 0.9;
 uniform vec3 foam_color : source_color = vec3(0.92, 0.96, 0.97);
+uniform float light_level = 1.0;      // scene brightness for the self-lit water body (low at night)
 
 varying vec3 world_pos;
 
@@ -46,20 +47,26 @@ void vertex() {
 	float t = TIME;
 	// calm in the slipway and against the quay, fuller swell out in the bay
 	float open_water = smoothstep(40.0, 140.0, world_pos.x);
-	float amp = swell_height * mix(0.45, 1.0, open_water);
+	float amp = swell_height * mix(0.22, 1.0, open_water);
 	vec3 sw = swell(world_pos.xz, t);
 	VERTEX.y += sw.x * amp;
-	NORMAL = normalize(NORMAL + (inverse(mat3(MODEL_MATRIX)) * vec3(-sw.y * amp, 0.0, -sw.z * amp)));
+	NORMAL = normalize(NORMAL + (inverse(mat3(MODEL_MATRIX)) * vec3(-sw.y * amp, 0.0, -sw.z * amp)) * 0.3);
 }
 
 void fragment() {
 	float t = TIME * wave_speed;
 	vec2 uv = world_pos.xz * wave_scale;
+	// three layers at different scales and rotations so no direction repeats
+	mat2 r1 = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8));
+	mat2 r2 = mat2(vec2(0.28, -0.96), vec2(0.96, 0.28));
 	vec3 na = texture(wave_a, uv + vec2(t, t * 0.4)).rgb;
-	vec3 nb = texture(wave_b, uv * 2.3 + vec2(-t * 0.7, t * 1.1)).rgb;
-	vec3 nc = texture(wave_a, uv * 0.31 + vec2(t * 0.2, -t * 0.25)).rgb;
+	vec3 nb = texture(wave_b, r1 * uv * 2.3 + vec2(-t * 0.7, t * 1.1)).rgb;
+	vec3 nc = texture(wave_a, r2 * uv * 0.37 + vec2(t * 0.2, -t * 0.25)).rgb;
 	vec3 n = normalize((na * 2.0 - 1.0) + (nb * 2.0 - 1.0) * 0.6 + (nc * 2.0 - 1.0) * 0.8);
-	NORMAL_MAP = mix(vec3(0.5, 0.5, 1.0), n * 0.5 + 0.5, normal_strength);
+	// calmer far away: fine ripples there only read as repeating stripes
+	float dist = length(world_pos - CAMERA_POSITION_WORLD);
+	float ns = normal_strength * mix(1.0, 0.35, smoothstep(60.0, 700.0, dist));
+	NORMAL_MAP = mix(vec3(0.5, 0.5, 1.0), n * 0.5 + 0.5, ns);
 
 	// how much water lies between the surface and whatever is behind it
 	float scene_depth = texture(depth_tex, SCREEN_UV).r;
@@ -87,7 +94,7 @@ void fragment() {
 	col = mix(col, foam_color, clamp(foam, 0.0, 1.0));
 
 	ALBEDO = vec3(0.0);
-	EMISSION = col * 0.92;
+	EMISSION = col * 0.92 * light_level;
 	ROUGHNESS = mix(0.04, 0.5, foam);
 	METALLIC = 0.0;
 	SPECULAR = 0.5;

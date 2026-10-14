@@ -254,46 +254,71 @@ static func east_bank_roads(root: Node3D) -> void:
 	var mi := g.commit(root, "EastBankRoads", false, false)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
-## Arena silhouettes (provisional placement): the Championship Arena on the far
-## shore across the bay, the Ground Arena inland on the hills to the north-west.
+## Arena silhouettes. PROVISIONAL placement: positions are these two constants
+## and nothing else depends on them; final placement needs ground-travel and
+## jet-flight testing.
+const CHAMPIONSHIP_ARENA := Vector3(1480.0, 0.0, 260.0)
+const GROUND_ARENA := Vector3(-640.0, 0.0, -1430.0)
+
 static func arenas(root: Node3D) -> void:
-	var stone := Mats.lit("ArenaStone", Color(0.86, 0.84, 0.8), 0.7)
-	var steel := Mats.lit("ArenaSteel", Color(0.7, 0.72, 0.74), 0.4, 0.6)
+	var stone := Mats.lit("ArenaStone", Color(0.88, 0.86, 0.82), 0.7)
+	var steel := Mats.lit("ArenaSteel", Color(0.72, 0.74, 0.77), 0.35, 0.65)
+	var shade := Mats.lit("ArenaShade", Color(0.3, 0.32, 0.36), 0.8)
+	var lamp := Mats.glow("ArenaLamp", Color(1.0, 0.95, 0.85), 6.0)
 	var g := Geo.new()
-	# Championship Arena: oval bowl, upper rim, two great arches over it
-	var ca := Vector3(1480.0, Site.east_ground(1480.0, 260.0), 260.0)
+	# Championship Arena: tiered oval bowl, a roof canopy ring, two great arches,
+	# light masts, screens and a restrained league sign
+	var ca := CHAMPIONSHIP_ARENA
+	ca.y = Site.east_ground(ca.x, ca.z)
 	var oval := Basis().scaled(Vector3(1.0, 1.0, 0.72))
-	var tiers := [[150.0, 0.0, 30.0, stone], [140.0, 30.0, 44.0, steel]]
-	for t in tiers:
+	for t in [[150.0, 0.0, 26.0, stone], [146.0, 26.0, 34.0, shade], [140.0, 34.0, 48.0, stone]]:
 		var cm := CylinderMesh.new()
 		cm.top_radius = t[0]
-		cm.bottom_radius = t[0] + 6.0
+		cm.bottom_radius = t[0] + 5.0
 		cm.height = t[2] - t[1]
-		cm.radial_segments = 48
+		cm.radial_segments = 56
 		g.mesh(t[3], cm, Transform3D(oval, ca + Vector3(0, (t[1] + t[2]) * 0.5, 0)))
+	var ring := TorusMesh.new()
+	ring.inner_radius = 118.0
+	ring.outer_radius = 150.0
+	ring.rings = 48
+	ring.ring_segments = 6
+	g.mesh(steel, ring, Transform3D(Basis().scaled(Vector3(1.0, 0.18, 0.72)), ca + Vector3(0, 50.0, 0)))
 	for s: float in [-1.0, 1.0]:
 		var prev := Vector3.ZERO
-		for k in 13:
-			var a := PI * k / 12.0
-			var p := ca + Vector3(cos(a) * 160.0, 44.0 + sin(a) * 75.0, s * 70.0)
+		for k in 17:
+			var a := PI * k / 16.0
+			var p := ca + Vector3(cos(a) * 165.0, 48.0 + sin(a) * 85.0, s * 62.0)
 			if k > 0:
-				g.beam(steel, prev, p, 5.0)
+				g.beam(steel, prev, p, 5.5)
 			prev = p
-	# screens on the land side (lit at night)
-	g.box(Mats.glow("ArenaScreen", Color(0.3, 0.55, 0.9), 1.5), ca + Vector3(-150.0, 22.0, 0), Vector3(2.0, 18.0, 46.0))
-	# Ground Arena: a stone coliseum on the north-west hills, with flag masts
-	var ga := Vector3(-640.0, 0, -1430.0)
+	for k in 4:
+		var a := TAU * (k + 0.5) / 4.0
+		var p := ca + Vector3(cos(a) * 170.0, 0, sin(a) * 125.0)
+		g.cylinder(steel, p, p + Vector3(0, 78.0, 0), 1.6, 8)
+		g.box(lamp, p + Vector3(0, 79.0, 0), Vector3(8.0, 3.0, 8.0), Basis(Vector3.UP, a))
+	g.box(Mats.glow("ArenaScreen", Color(0.35, 0.6, 0.95), 1.4), ca + Vector3(-152.0, 30.0, 0), Vector3(2.0, 16.0, 44.0))
+	# Ground Arena: stone coliseum with arched openings and flag masts
+	var ga := GROUND_ARENA
 	ga.y = Site.ground(ga.x, ga.z) - 2.0
 	var cg := CylinderMesh.new()
 	cg.top_radius = 105.0
 	cg.bottom_radius = 112.0
-	cg.height = 36.0
-	cg.radial_segments = 40
-	g.mesh(stone, cg, Transform3D(Basis().scaled(Vector3(1.0, 1.0, 0.8)), ga + Vector3(0, 18.0, 0)))
+	cg.height = 38.0
+	cg.radial_segments = 48
+	g.mesh(stone, cg, Transform3D(Basis().scaled(Vector3(1.0, 1.0, 0.8)), ga + Vector3(0, 19.0, 0)))
+	for k in 36:
+		var a := TAU * k / 36.0
+		for lvl in 2:
+			var p := ga + Vector3(cos(a) * 109.0, 9.0 + lvl * 13.0, sin(a) * 87.4)
+			g.box(shade, p, Vector3(7.0, 8.5, 2.0), Basis(Vector3.UP, -a + PI * 0.5))
 	for k in 10:
 		var a := TAU * k / 10.0
-		var p := ga + Vector3(cos(a) * 110.0, 36.0, sin(a) * 88.0)
+		var p := ga + Vector3(cos(a) * 110.0, 38.0, sin(a) * 88.0)
 		g.cylinder(steel, p, p + Vector3(0, 22.0, 0), 0.8, 6)
 		g.box(Mats.glow("ArenaFlag", Color(0.85, 0.2, 0.15), 0.6), p + Vector3(3.0, 20.0, 0), Vector3(6.0, 3.5, 0.2))
 	var mi := g.commit(root, "Arenas", false, false)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var sign := _label(root, "IRON LEAGUE  ·  CHAMPIONSHIP ARENA", ca + Vector3(-156.0, 40.0, 0), -PI * 0.5, 0.16, Color(1.0, 0.82, 0.4))
+	sign.font_size = 96
+	sign.billboard = BaseMaterial3D.BILLBOARD_DISABLED

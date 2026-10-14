@@ -1,6 +1,6 @@
 // Expanding ring ripple laid on the water surface; `life` runs 0 -> 1.
 shader_type spatial;
-render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
 
 uniform float life = 0.0;
 uniform vec3 tint : source_color = vec3(0.85, 0.95, 1.0);

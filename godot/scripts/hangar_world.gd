@@ -166,8 +166,11 @@ func _environment(laptop: bool) -> void:
 	env.glow_hdr_threshold = 1.2
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.66, 0.76, 0.88)
-	env.fog_density = 0.00026
-	env.fog_aerial_perspective = 0.55
+	env.fog_density = 0.00022
+	env.fog_aerial_perspective = 0.3
+	# fog thins with height so mountain slopes keep their green
+	env.fog_height = 0.0
+	env.fog_height_density = 0.0025
 	env.fog_sky_affect = 0.25
 	env.volumetric_fog_enabled = not laptop
 	env.volumetric_fog_density = 0.0012
@@ -215,6 +218,14 @@ func _apply_night() -> void:
 	_env.fog_light_color = Color(0.08, 0.1, 0.16)
 	_env.tonemap_exposure = 1.25
 	_env.glow_intensity = 0.8
+	City.material().set_shader_parameter("night", 1.0)
+	var water := Mats.get_m("Water") as ShaderMaterial
+	if water:
+		water.set_shader_parameter("light_level", 0.16)
+	for key in ["Terrain", "Granite"]:
+		var m := Mats.get_m(key) as ShaderMaterial
+		if m:
+			m.set_shader_parameter("caustic_level", 0.0)
 	for n in get_tree().get_nodes_in_group("night_lights"):
 		if n is SpotLight3D:
 			(n as SpotLight3D).light_energy = 5.0

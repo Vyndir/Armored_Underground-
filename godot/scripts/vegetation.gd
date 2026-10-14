@@ -246,7 +246,7 @@ static func forest(root: Node3D) -> void:
 		if absf(x - _road_x(z)) < 14.0 and z < Site.SLICE_Z:
 			continue
 		var h := Site.ground(x, z)
-		if h < Site.WATER_Y + 1.4 or Site.slope(x, z) > 0.95:
+		if h < Site.WATER_Y + 1.4 or Site.slope(x, z) > 1.15:
 			continue
 		var grove := 0.5 + 0.5 * Site.n2(x, z, 0.011, 77)
 		var d := Site.coast_x(z) - x
